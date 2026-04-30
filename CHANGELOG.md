@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.15.9] - 2026-05-01
+
+### Fixed
+
+- Queue input injection: properly remove injected queued items and hold turn boundary until agent confirms
+
+### Added
+
+- `DequeuePending` and `RemoveSentToInbox` queue methods for precise sent-item lifecycle
+- `HandleAgentMessage` to process agent-injected user messages and sync queue state
+
 ## [v1.15.8] - 2026-04-30
 
 ### Added
