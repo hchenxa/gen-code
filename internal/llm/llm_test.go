@@ -43,6 +43,17 @@ func (m *mockLLMProvider) ListModels(_ context.Context) ([]ModelInfo, error) {
 
 func (m *mockLLMProvider) Name() string { return "mock" }
 
+type mockLimitFetcherProvider struct {
+	mockLLMProvider
+	inputLimit  int
+	outputLimit int
+	fetchErr    error
+}
+
+func (m *mockLimitFetcherProvider) FetchModelLimits(_ context.Context, _ string) (int, int, error) {
+	return m.inputLimit, m.outputLimit, m.fetchErr
+}
+
 // --- LLM tests ---
 
 func TestLLMSend(t *testing.T) {
@@ -149,6 +160,35 @@ func TestResolveMaxTokens_Fallback(t *testing.T) {
 	got := l.ResolveMaxTokens(context.Background())
 	if got != defaultMaxTokens {
 		t.Errorf("expected default %d, got %d", defaultMaxTokens, got)
+	}
+}
+
+func TestResolveMaxTokens_FromModelLimitsFetcher(t *testing.T) {
+	mp := &mockLimitFetcherProvider{
+		mockLLMProvider: mockLLMProvider{
+			models: []ModelInfo{{ID: "m"}},
+		},
+		outputLimit: 128000,
+	}
+	l := &Client{provider: mp, model: "m"}
+
+	got := l.ResolveMaxTokens(context.Background())
+	if got != 128000 {
+		t.Errorf("expected 128000, got %d", got)
+	}
+}
+
+func TestInputLimitFromModelLimitsFetcher(t *testing.T) {
+	mp := &mockLimitFetcherProvider{
+		mockLLMProvider: mockLLMProvider{
+			models: []ModelInfo{{ID: "m"}},
+		},
+		inputLimit: 400000,
+	}
+
+	got := inputLimitFromProvider(mp, "m")
+	if got != 400000 {
+		t.Errorf("expected 400000, got %d", got)
 	}
 }
 

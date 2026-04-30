@@ -258,12 +258,17 @@ func inputLimitFromProvider(p Provider, model string) int {
 		return 0
 	}
 	models, err := p.ListModels(context.TODO())
-	if err != nil {
-		return 0
+	if err == nil {
+		for _, m := range models {
+			if m.ID == model && m.InputTokenLimit > 0 {
+				return m.InputTokenLimit
+			}
+		}
 	}
-	for _, m := range models {
-		if m.ID == model {
-			return m.InputTokenLimit
+	if fetcher, ok := p.(ModelLimitsFetcher); ok {
+		input, _, err := fetcher.FetchModelLimits(context.TODO(), model)
+		if err == nil {
+			return input
 		}
 	}
 	return 0
@@ -275,12 +280,17 @@ func outputLimitFromProvider(p Provider, model string) int {
 		return 0
 	}
 	models, err := p.ListModels(context.TODO())
-	if err != nil {
-		return 0
+	if err == nil {
+		for _, m := range models {
+			if m.ID == model && m.OutputTokenLimit > 0 {
+				return m.OutputTokenLimit
+			}
+		}
 	}
-	for _, m := range models {
-		if m.ID == model {
-			return m.OutputTokenLimit
+	if fetcher, ok := p.(ModelLimitsFetcher); ok {
+		_, output, err := fetcher.FetchModelLimits(context.TODO(), model)
+		if err == nil {
+			return output
 		}
 	}
 	return 0

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/responses"
@@ -20,15 +21,18 @@ import (
 
 // Client implements the Provider interface using the OpenAI SDK
 type Client struct {
-	client openai.Client
-	name   string
+	client     openai.Client
+	name       string
+	limitMu    sync.Mutex
+	limitCache map[string]modelTokenLimits
 }
 
 // NewClient creates a new OpenAI client with the given SDK client
 func NewClient(client openai.Client, name string) *Client {
 	return &Client{
-		client: client,
-		name:   name,
+		client:     client,
+		name:       name,
+		limitCache: make(map[string]modelTokenLimits),
 	}
 }
 
