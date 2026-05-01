@@ -1,17 +1,19 @@
+# Gen Code
+
 <p align="center">
   <h1 align="center">< GEN ✦ /></h1>
   <p align="center">
     <strong>Open-source AI coding assistant for the terminal</strong>
   </p>
   <p align="center">
-    <a href="https://github.com/yanmxa/gencode/releases"><img src="https://img.shields.io/github/v/release/yanmxa/gencode?style=flat-square" alt="Release"></a>
-    <a href="https://goreportcard.com/report/github.com/yanmxa/gencode"><img src="https://goreportcard.com/badge/github.com/yanmxa/gencode?style=flat-square" alt="Go Report Card"></a>
-    <a href="https://pkg.go.dev/github.com/yanmxa/gencode"><img src="https://pkg.go.dev/badge/github.com/yanmxa/gencode.svg" alt="Go Reference"></a>
+    <a href="https://github.com/genai-io/gen-code/releases"><img src="https://img.shields.io/github/v/release/genai-io/gen-code?style=flat-square" alt="Release"></a>
+    <a href="https://goreportcard.com/report/github.com/genai-io/gen-code"><img src="https://goreportcard.com/badge/github.com/genai-io/gen-code?style=flat-square" alt="Go Report Card"></a>
+    <a href="https://pkg.go.dev/github.com/genai-io/gen-code"><img src="https://pkg.go.dev/badge/github.com/genai-io/gen-code.svg" alt="Go Reference"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
   </p>
 </p>
 
-An open-source AI coding assistant for the terminal built with Go. Multi-provider LLM support, event-driven multi-agent orchestration, and full compatibility with [Claude Code](https://claude.ai/code) extensions, plugins, and project instructions.
+Open-source AI coding assistant for the terminal built with Go. Multi-provider LLM support, event-driven multi-agent orchestration, and full compatibility with [Claude Code](https://claude.ai/code) extensions, plugins, and project instructions.
 
 ## Features
 
@@ -39,13 +41,13 @@ An open-source AI coding assistant for the terminal built with Go. Multi-provide
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yanmxa/gencode/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/genai-io/gen-code/main/install.sh | bash
 ```
 
 Re-run to upgrade. To uninstall:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yanmxa/gencode/main/install.sh | bash -s uninstall
+curl -fsSL https://raw.githubusercontent.com/genai-io/gen-code/main/install.sh | bash -s uninstall
 ```
 
 <details>
@@ -54,14 +56,14 @@ curl -fsSL https://raw.githubusercontent.com/yanmxa/gencode/main/install.sh | ba
 **Go Install**
 
 ```bash
-go install github.com/yanmxa/gencode/cmd/gen@latest
+go install github.com/genai-io/gen-code/cmd/gen@latest
 ```
 
 **Build from Source**
 
 ```bash
-git clone https://github.com/yanmxa/gencode.git
-cd gencode
+git clone https://github.com/genai-io/gen-code.git
+cd gen-code
 go build -o gen ./cmd/gen
 mkdir -p ~/.local/bin && mv gen ~/.local/bin/
 ```
@@ -97,7 +99,7 @@ Keyboard: `Shift+Tab` toggle permission mode, `Ctrl+O` expand tool details, `Ctr
 
 ## Configuration
 
-GenCode stores configuration in `~/.gen/`:
+Gen Code stores configuration in `~/.gen/`:
 
 ```
 ~/.gen/
@@ -115,11 +117,11 @@ GenCode stores configuration in `~/.gen/`:
 
 Place a `GEN.md` (or `CLAUDE.md`) in your project root to provide project-specific instructions. These are automatically loaded into the system prompt. Project-level settings can also be placed in `.gen/settings.json`.
 
-## Benchmark: GenCode vs Claude Code
+## Benchmark: Gen Code vs Claude Code
 
 Compared with [Claude Code](https://claude.ai/code) v2.1.112 on Apple Silicon, same model (`claude-sonnet-4-6`):
 
-| Metric | GenCode | Claude Code | Advantage |
+| Metric | Gen Code | Claude Code | Advantage |
 |--------|---------|-------------|-----------|
 | Download size | 12 MB | 63 MB (+ Node.js 112 MB) | **5x smaller** |
 | Disk footprint | 38 MB | 175 MB | **4.6x smaller** |
