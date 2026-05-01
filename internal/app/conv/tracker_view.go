@@ -7,8 +7,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
 const maxVisibleTasks = 8

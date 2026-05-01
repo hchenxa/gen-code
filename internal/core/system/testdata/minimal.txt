@@ -49,8 +49,8 @@ Prefer specialized tools over Bash: Read (not cat), Edit (not sed), Write (not e
 
 Before spawning an Agent, estimate the effort. Use the lightest option:
 1. Single Bash/Glob/Grep/Read call can answer it → use that tool directly
-2. Needs 3+ searches with decisions between them → Explore agent
-3. Needs code changes, complex reasoning, or multi-file edits → general-purpose agent
+2. Needs 3+ non-mutating searches with decisions between them → general-purpose agent with mode=explore
+3. Needs code changes, complex reasoning, or multi-file edits → general-purpose agent with mode=edit/default
 
 Key rules:
 - Read before modifying — never change code you haven't read.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // Service is the public contract for the tool module.
@@ -17,10 +17,6 @@ type Service interface {
 
 	// execution
 	Execute(ctx context.Context, name string, params map[string]any, cwd string) toolresult.ToolResult
-
-	// deferred tools
-	ResetFetched()
-	FormatDeferredToolsPrompt() string
 
 	// side effects
 	PopSideEffect(toolCallID string) any

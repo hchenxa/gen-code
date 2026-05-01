@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/log"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/log"
 	"go.uber.org/zap"
 )
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 func TestToolIDSanitizer_ValidIDPassthrough(t *testing.T) {

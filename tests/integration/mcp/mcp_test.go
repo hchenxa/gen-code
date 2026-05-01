@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/mcp"
-	"github.com/yanmxa/gencode/internal/mcp/transport"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/mcp/transport"
 )
 
 // ---------------------------------------------------------------------------

@@ -12,9 +12,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/core/system"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/core/system"
 )
 
 // ── State ───────────────────────────────────────────────────────────────

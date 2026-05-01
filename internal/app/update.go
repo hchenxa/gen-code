@@ -10,21 +10,21 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yanmxa/gencode/internal/app/conv"
-	"github.com/yanmxa/gencode/internal/app/input"
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/app/trigger"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/image"
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/app/input"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/app/trigger"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/image"
+	"github.com/genai-io/gen-code/internal/llm"
 	"go.uber.org/zap"
 
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/session"
-	"github.com/yanmxa/gencode/internal/setting"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/session"
+	"github.com/genai-io/gen-code/internal/setting"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
 )
 
 // ============================================================
@@ -503,7 +503,6 @@ func (m *model) commandDeps() input.CommandDeps {
 		SetThinkingEffort:  func(effort string) { m.env.ThinkingEffort = effort },
 		EnsureSessionStore: func(cwd string) error { return m.services.Session.EnsureStore(cwd) },
 		ForkSession:        m.forkSession,
-		ResetFetched:       m.services.Tool.ResetFetched,
 
 		CommitMessages:          m.CommitMessages,
 		StartProviderTurn:       m.StartProviderTurn,

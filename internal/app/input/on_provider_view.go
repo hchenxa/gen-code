@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 // Render renders the unified model & provider selector as a full-screen overlay.

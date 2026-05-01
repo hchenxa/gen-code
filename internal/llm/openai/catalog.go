@@ -3,7 +3,7 @@ package openai
 import (
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 var reasoningEfforts = []string{"none", "low", "medium", "high", "xhigh"}

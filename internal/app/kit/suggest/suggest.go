@@ -9,7 +9,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/app/kit"
 )
 
 type Type int

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
 func TestTranscriptTypesCarryProjectedState(t *testing.T) {

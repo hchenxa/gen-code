@@ -10,10 +10,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yanmxa/gencode/internal/app/kit/history"
-	"github.com/yanmxa/gencode/internal/app/kit/suggest"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/image"
+	"github.com/genai-io/gen-code/internal/app/kit/history"
+	"github.com/genai-io/gen-code/internal/app/kit/suggest"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/image"
 )
 
 const (

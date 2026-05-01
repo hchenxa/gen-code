@@ -834,7 +834,7 @@ func TestSafeToolAllowlist(t *testing.T) {
 		"Read", "Glob", "Grep", "WebFetch", "WebSearch", "LSP",
 		"TaskCreate", "TaskGet", "TaskList", "TaskUpdate",
 		"AskUserQuestion",
-		"CronList", "ToolSearch",
+		"CronList",
 	}
 
 	for _, tool := range allSafeTools {

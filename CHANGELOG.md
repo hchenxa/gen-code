@@ -114,7 +114,7 @@ All notable changes to this project will be documented in this file.
 
 - Add coverage for pending queue filtering, hidden queue badge behavior, and aggregated tool-call text output
 
-[Full Changelog](https://github.com/yanmxa/gencode/compare/v1.15.0...v1.15.1)
+[Full Changelog](https://github.com/genai-io/gen-code/compare/v1.15.0...v1.15.1)
 
 ## [v1.15.0] - 2026-04-24
 
@@ -133,4 +133,4 @@ All notable changes to this project will be documented in this file.
 
 - Add tests for cost estimation and provider selection
 
-[Full Changelog](https://github.com/yanmxa/gencode/compare/v1.14.9...v1.15.0)
+[Full Changelog](https://github.com/genai-io/gen-code/compare/v1.14.9...v1.15.0)

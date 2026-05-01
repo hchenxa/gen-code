@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/app/kit"
 )
 
 // AgentConfigInfo holds display info for a single agent configuration.
@@ -98,18 +98,14 @@ func (s *AgentSelector) EnterSelect(width, height int) error {
 
 func formatAgentPermMode(mode string) string {
 	switch mode {
-	case "plan":
-		return "plan"
-	case "acceptEdits":
-		return "acceptEdits"
-	case "dontAsk":
-		return "dontAsk"
-	case "bypassPermissions":
-		return "bypass"
-	case "auto":
-		return "auto"
-	default:
+	case "explore":
+		return "explore"
+	case "edit":
+		return "edit"
+	case "default", "":
 		return "default"
+	default:
+		return mode
 	}
 }
 

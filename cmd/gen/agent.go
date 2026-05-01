@@ -9,12 +9,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/core/system"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/setting"
-	"github.com/yanmxa/gencode/internal/subagent"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/core/system"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/setting"
+	"github.com/genai-io/gen-code/internal/subagent"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 var agentRunOpts struct {

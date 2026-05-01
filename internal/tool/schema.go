@@ -1,14 +1,13 @@
 package tool
 
-import "github.com/yanmxa/gencode/internal/core"
+import "github.com/genai-io/gen-code/internal/core"
 
 // Tool name constants used in runtime comparisons across the codebase.
 const (
-	ToolAgent         = "Agent"
-	ToolContinueAgent = "ContinueAgent"
-	ToolSendMessage   = "SendMessage"
-	ToolTaskOutput    = "TaskOutput"
-	ToolTaskStop      = "TaskStop"
+	ToolAgent       = "Agent"
+	ToolSendMessage = "SendMessage"
+	ToolTaskOutput  = "TaskOutput"
+	ToolTaskStop    = "TaskStop"
 
 	// Deprecated aliases — kept for backward compatibility with cached model contexts.
 	ToolAgentOutput   = ToolTaskOutput
@@ -23,14 +22,13 @@ const (
 	ToolCronList      = "CronList"
 	ToolEnterWorktree = "EnterWorktree"
 	ToolExitWorktree  = "ExitWorktree"
-	ToolToolSearch    = "ToolSearch"
 
 	ToolAskUserQuestion = "AskUserQuestion"
 )
 
 // IsAgentToolName reports whether the tool name represents an agent-like worker tool.
 func IsAgentToolName(name string) bool {
-	return name == ToolAgent || name == ToolContinueAgent || name == ToolSendMessage
+	return name == ToolAgent || name == ToolSendMessage
 }
 
 // GetToolSchemas returns core.ToolSchema definitions for all registered tools
@@ -43,8 +41,7 @@ func GetToolSchemasWithMCP(mcpToolsGetter func() []core.ToolSchema) []core.ToolS
 	tools := make([]core.ToolSchema, 0, 20)
 	tools = append(tools, baseToolSchemas()...)
 	tools = append(tools, skillToolSchema)
-	tools = append(tools, agentToolSchema, continueAgentToolSchema, sendMessageToolSchema)
-	tools = append(tools, toolSearchSchema)
+	tools = append(tools, agentToolSchema, sendMessageToolSchema)
 	tools = append(tools, trackerToolSchemas...)
 	tools = append(tools, cronToolSchemas...)
 	tools = append(tools, worktreeToolSchemas...)

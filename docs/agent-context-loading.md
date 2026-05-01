@@ -71,7 +71,7 @@ This design ensures:
 │     │ ## Your Task                                                   │  │
 │     │ {req.Prompt - user-specified task}                             │  │
 │     │                                                                │  │
-│     │ ## Mode: Read-Only/Autonomous (based on permission-mode)       │  │
+│     │ ## Mode: Explore/Edit/Default (based on permission-mode)       │  │
 │     │                                                                │  │
 │     │ ## Additional Instructions  ← Lazy loaded! First GetSystemPrompt()│
 │     │ {full agent markdown body}                                     │  │
@@ -181,7 +181,7 @@ func LoadAgentSystemPrompt(filePath string) string {
 | **System Prompt** | base + tools + provider + env + memory + skills/agents metadata | Agent-specific prompt (simplified) |
 | **Agent Info** | `<available-agents>` with name:description only | Full SystemPrompt (lazy loaded) |
 | **Tools** | All tools | Restricted (based on agent config) |
-| **Permission** | TUI permission system | Independent (plan/acceptEdits/dontAsk) |
+| **Permission** | TUI permission system | Independent (explore/edit/default) |
 | **Model** | User-selected model | Can differ (inherit/sonnet/opus/haiku) |
 | **Messages** | Full conversation history | Only agent task prompt |
 | **MaxTurns** | Unlimited | Limited (default 10) |

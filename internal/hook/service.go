@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 // Service is the public contract for the hook module.

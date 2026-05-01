@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 // Service is the public contract for the subagent module.

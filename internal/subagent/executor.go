@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/core/system"
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/mcp"
-	"github.com/yanmxa/gencode/internal/task"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/internal/worktree"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/core/system"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/task"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/worktree"
 	"go.uber.org/zap"
 )
 
@@ -227,7 +227,7 @@ func (e *Executor) prepareRunConfig(req AgentRequest) (*runConfig, error) {
 	}
 
 	maxTurns := config.MaxTurns
-	if req.MaxTurns > 0 {
+	if req.MaxTurns > maxTurns {
 		maxTurns = req.MaxTurns
 	}
 	if maxTurns <= 0 {
@@ -293,8 +293,14 @@ func (e *Executor) buildAgent(ctx context.Context, rc *runConfig, agentCwd strin
 
 	// Tools — adapt legacy tool registry + MCP tools
 	toolSet := newAgentToolSet([]string(rc.config.Tools), []string(rc.config.DisallowedTools), e.mcpGetter)
-	schemas := toolSet.Tools()
-	tools := tool.AdaptToolRegistry(schemas, func() string { return agentCwd })
+	schemas := filterSchemasForPermission(toolSet.Tools(), rc.permMode)
+	var ag core.Agent
+	tools := tool.AdaptToolRegistry(schemas, func() string { return agentCwd }, tool.WithMessagesGetterProvider(func() []core.Message {
+		if ag == nil {
+			return nil
+		}
+		return ag.Messages()
+	}))
 
 	// Add MCP tool executors
 	if e.mcpRegistry != nil {
@@ -310,10 +316,10 @@ func (e *Executor) buildAgent(ctx context.Context, rc *runConfig, agentCwd strin
 	}
 
 	// Wrap tools with permission decorator
-	permFn := perm.AsPermissionFunc(agentPermission(rc.permMode))
+	permFn := subagentPermissionFunc(rc.permMode)
 	coreTools = tool.WithPermission(coreTools, permFn)
 
-	ag := core.NewAgent(core.Config{
+	ag = core.NewAgent(core.Config{
 		LLM:       llm.NewClient(e.provider, rc.modelID, 0),
 		System:    sys,
 		Tools:     coreTools,
@@ -403,14 +409,55 @@ func shouldRetryWithParentModel(err error, modelID, parentModelID string) bool {
 // agentPermission maps PermissionMode to a perm.Checker.
 func agentPermission(mode PermissionMode) perm.Checker {
 	switch mode {
-	case PermissionPlan:
+	case PermissionExplore:
 		return perm.ReadOnly()
-	case PermissionAcceptEdits:
+	case PermissionEdit:
 		return perm.AcceptEdits()
 	case PermissionDefault:
 		return perm.PermitAll()
 	default:
 		return perm.PermitAll()
+	}
+}
+
+func subagentPermissionFunc(mode PermissionMode) perm.PermissionFunc {
+	checker := agentPermission(mode)
+	if checker == nil {
+		return nil
+	}
+	return func(_ context.Context, name string, input map[string]any) (bool, string) {
+		switch checker.Check(name, input) {
+		case perm.Permit:
+			return true, ""
+		case perm.Reject:
+			return false, fmt.Sprintf("tool %s is not permitted in %s mode", name, displayPermissionMode(mode))
+		case perm.Prompt:
+			return false, fmt.Sprintf("tool %s requires approval and is not available to subagents in %s mode", name, displayPermissionMode(mode))
+		default:
+			return false, fmt.Sprintf("tool %s is not permitted in %s mode", name, displayPermissionMode(mode))
+		}
+	}
+}
+
+func filterSchemasForPermission(schemas []core.ToolSchema, mode PermissionMode) []core.ToolSchema {
+	if mode != PermissionExplore && mode != PermissionEdit {
+		return schemas
+	}
+	filtered := make([]core.ToolSchema, 0, len(schemas))
+	for _, schema := range schemas {
+		if perm.IsReadOnlyTool(schema.Name) || (mode == PermissionEdit && isEditToolSchema(schema.Name)) {
+			filtered = append(filtered, schema)
+		}
+	}
+	return filtered
+}
+
+func isEditToolSchema(name string) bool {
+	switch name {
+	case "Edit", "Write", "NotebookEdit":
+		return true
+	default:
+		return false
 	}
 }
 

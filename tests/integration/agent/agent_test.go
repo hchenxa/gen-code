@@ -4,22 +4,23 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/setting"
-	"github.com/yanmxa/gencode/internal/subagent"
-	"github.com/yanmxa/gencode/internal/task"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	_ "github.com/yanmxa/gencode/internal/tool/registry"
-	"github.com/yanmxa/gencode/tests/integration/testutil"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/setting"
+	"github.com/genai-io/gen-code/internal/subagent"
+	"github.com/genai-io/gen-code/internal/task"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	_ "github.com/genai-io/gen-code/internal/tool/registry"
+	"github.com/genai-io/gen-code/tests/integration/testutil"
 )
 
-func TestAgent_ExploreAgent(t *testing.T) {
+func TestAgent_GeneralExploreMode(t *testing.T) {
 	mp := &testutil.MockProvider{
 		Responses: []llm.CompletionResponse{
 			{
@@ -31,7 +32,8 @@ func TestAgent_ExploreAgent(t *testing.T) {
 
 	executor := subagent.NewExecutor(mp, t.TempDir(), "fake-model", nil)
 	result, err := executor.Run(context.Background(), subagent.AgentRequest{
-		Agent:       "Explore",
+		Agent:       "general-purpose",
+		Mode:        "explore",
 		Prompt:      "Find all Go files",
 		Description: "explore codebase",
 	})
@@ -42,8 +44,8 @@ func TestAgent_ExploreAgent(t *testing.T) {
 	if !result.Success {
 		t.Errorf("expected success, got error: %s", result.Error)
 	}
-	if result.AgentName != "Explore" {
-		t.Errorf("expected agent name 'Explore', got %q", result.AgentName)
+	if result.AgentName != "General" {
+		t.Errorf("expected agent name 'General', got %q", result.AgentName)
 	}
 	if result.Content != "Explored the codebase" {
 		t.Errorf("unexpected content: %q", result.Content)
@@ -65,7 +67,7 @@ func TestAgent_UnknownAgent(t *testing.T) {
 
 func TestAgent_MaxTurnsRespected(t *testing.T) {
 	// LLM always returns tool calls to force hitting max turns
-	responses := make([]llm.CompletionResponse, 10)
+	responses := make([]llm.CompletionResponse, 105)
 	for i := range responses {
 		responses[i] = llm.CompletionResponse{
 			StopReason: "tool_use",
@@ -79,9 +81,8 @@ func TestAgent_MaxTurnsRespected(t *testing.T) {
 		t.TempDir(), "fake-model", nil,
 	)
 	result, err := executor.Run(context.Background(), subagent.AgentRequest{
-		Agent:    "Explore",
-		Prompt:   "keep going",
-		MaxTurns: 2,
+		Agent:  "general-purpose",
+		Prompt: "keep going",
 	})
 	if err != nil {
 		t.Fatalf("Run() error: %v", err)
@@ -90,8 +91,8 @@ func TestAgent_MaxTurnsRespected(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure (max turns)")
 	}
-	if result.Error == "" {
-		t.Error("expected error message about max turns")
+	if !strings.Contains(result.Error, "100") {
+		t.Errorf("expected error message about 100 max turns, got %q", result.Error)
 	}
 }
 
@@ -121,7 +122,7 @@ func TestAgent_ModelResolution(t *testing.T) {
 			}
 
 			_, err := executor.Run(context.Background(), subagent.AgentRequest{
-				Agent:  "Explore",
+				Agent:  "general-purpose",
 				Prompt: "test",
 				Model:  tt.reqModel,
 			})
@@ -132,18 +133,18 @@ func TestAgent_ModelResolution(t *testing.T) {
 	}
 }
 
-// TestAgent_PlanPermissionMode_BlocksWrites verifies that an agent configured
-// with permission-mode:plan cannot execute write tools.
-// The built-in "Explore" agent has PermissionPlan, so its permission checker
+// TestAgent_ExploreMode_BlocksWrites verifies that an agent configured
+// with mode=explore cannot execute write tools.
+// Explore mode uses a read-only permission checker, so it
 // should reject Write/Edit calls.
-func TestAgent_PlanPermissionMode_BlocksWrites(t *testing.T) {
+func TestAgent_ExploreMode_BlocksWrites(t *testing.T) {
 	checker := perm.ReadOnly()
 
 	writeTools := []string{"Write", "Edit", "NotebookEdit", "Bash"}
 	for _, tool := range writeTools {
 		decision := checker.Check(tool, nil)
 		if decision != perm.Reject {
-			t.Errorf("tool %q: expected Reject in plan mode, got %v", tool, decision)
+			t.Errorf("tool %q: expected Reject in explore mode, got %v", tool, decision)
 		}
 	}
 
@@ -151,11 +152,11 @@ func TestAgent_PlanPermissionMode_BlocksWrites(t *testing.T) {
 	for _, tool := range readTools {
 		decision := checker.Check(tool, nil)
 		if decision != perm.Permit {
-			t.Errorf("tool %q: expected Permit in plan mode, got %v", tool, decision)
+			t.Errorf("tool %q: expected Permit in explore mode, got %v", tool, decision)
 		}
 	}
 
-	// Also verify at the executor level: run a plan-mode agent with a Write tool
+	// Also verify at the executor level: run an explore-mode agent with a Write tool
 	// call queued. The tool call should be rejected (not executed), and the agent
 	// should still complete because the LLM gets the error result and ends turn.
 	mp := &testutil.MockProvider{
@@ -170,7 +171,7 @@ func TestAgent_PlanPermissionMode_BlocksWrites(t *testing.T) {
 			},
 			// Second response: LLM acknowledges the error and ends
 			{
-				Content:    "Cannot write files in plan mode",
+				Content:    "Cannot write files in explore mode",
 				StopReason: "end_turn",
 				Usage:      llm.Usage{InputTokens: 30, OutputTokens: 15},
 			},
@@ -179,7 +180,8 @@ func TestAgent_PlanPermissionMode_BlocksWrites(t *testing.T) {
 
 	executor := subagent.NewExecutor(mp, t.TempDir(), "fake-model", nil)
 	result, err := executor.Run(context.Background(), subagent.AgentRequest{
-		Agent:  "Explore", // built-in, PermissionPlan
+		Agent:  "general-purpose",
+		Mode:   "explore",
 		Prompt: "try to write a file",
 	})
 	if err != nil {
@@ -190,7 +192,7 @@ func TestAgent_PlanPermissionMode_BlocksWrites(t *testing.T) {
 	}
 
 	// The result content should come from the second response
-	if !strings.Contains(result.Content, "Cannot write files in plan mode") {
+	if !strings.Contains(result.Content, "Cannot write files in explore mode") {
 		t.Errorf("unexpected final content: %q", result.Content)
 	}
 }
@@ -241,7 +243,7 @@ func TestAgent_SubagentHooks_Fire(t *testing.T) {
 
 	executor := subagent.NewExecutor(mp, tmpDir, "fake-model", engine)
 	_, err := executor.Run(context.Background(), subagent.AgentRequest{
-		Agent:  "Explore",
+		Agent:  "general-purpose",
 		Prompt: "test hooks",
 	})
 	if err != nil {
@@ -281,7 +283,7 @@ func TestAgent_BackgroundExecution(t *testing.T) {
 
 	executor := subagent.NewExecutor(mp, t.TempDir(), "fake-model", nil)
 	agentTask, err := executor.RunBackground(subagent.AgentRequest{
-		Agent:       "Explore",
+		Agent:       "general-purpose",
 		Prompt:      "background task",
 		Description: "bg test",
 	})
@@ -330,7 +332,8 @@ func TestAgent_OnProgressReceivesToolUpdates(t *testing.T) {
 	executor := subagent.NewExecutor(mp, tmpDir, "fake-model", nil)
 	var progress []string
 	result, err := executor.Run(context.Background(), subagent.AgentRequest{
-		Agent:  "Explore",
+		Agent:  "general-purpose",
+		Mode:   "explore",
 		Prompt: "inspect the readme",
 		OnProgress: func(msg string) {
 			progress = append(progress, msg)
@@ -343,10 +346,15 @@ func TestAgent_OnProgressReceivesToolUpdates(t *testing.T) {
 	if !result.Success {
 		t.Fatalf("expected success, got error: %s", result.Error)
 	}
-	if len(progress) != 1 || progress[0] != "Read(README.md)" {
+	expectedProgress := []string{
+		"Mode: Explore · max 100 turns",
+		"Thinking...",
+		"Read(README.md)",
+	}
+	if !slices.Equal(progress, expectedProgress) {
 		t.Fatalf("unexpected progress callback values: %#v", progress)
 	}
-	if len(result.Progress) != 1 || result.Progress[0] != "Read(README.md)" {
+	if !slices.Equal(result.Progress, expectedProgress) {
 		t.Fatalf("unexpected result progress values: %#v", result.Progress)
 	}
 }

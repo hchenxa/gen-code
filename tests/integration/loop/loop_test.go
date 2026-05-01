@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/tests/integration/testutil"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/tests/integration/testutil"
 )
 
 func TestAgent_SingleTurn_EndTurn(t *testing.T) {

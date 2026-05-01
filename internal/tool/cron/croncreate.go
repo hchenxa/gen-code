@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yanmxa/gencode/internal/cron"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/cron"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // CronCreateTool creates a new scheduled cron job.

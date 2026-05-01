@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/tool/perm"
 )
 
 const (

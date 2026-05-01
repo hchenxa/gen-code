@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/app/conv"
 )
 
 func main() {

@@ -1,29 +1,23 @@
 package tool
 
-import "github.com/yanmxa/gencode/internal/core"
+import "github.com/genai-io/gen-code/internal/core"
 
 // agentToolSchema is the schema for the Agent tool.
 var agentToolSchema = core.ToolSchema{
 	Name: "Agent",
-	Description: `Launch a new agent to handle complex, multi-step tasks. Each agent type has specific capabilities and tools available to it.
+	Description: `Launch a subagent for complex work that benefits from separate context or parallel execution.
 
 Check <available-agents> for available agent types and their when-to-use guidance. Use agent name as subagent_type. If omitted, the general-purpose agent is used.
 
-When NOT to use Agent (use direct tools instead):
-- If you want to read a specific file path, use the Read tool or the Glob tool instead
-- If searching for code within a specific file or set of 2-3 files, use Read directly
-- For simple, directed codebase searches (e.g. for a specific file/class/function) use Glob or Grep directly
-- Other tasks that are simple enough for 1-2 direct tool calls
+Use direct tools instead for simple reads, narrow searches, or tasks that only need 1-2 tool calls.
 
 Usage notes:
 - Always include a short description (3-5 words) summarizing what the agent will do
 - Launch multiple agents concurrently whenever possible; to do that, use a single message with multiple Agent calls
-- Each agent runs in isolated context — the result returned by the agent is not visible to the user. To show the user the result, you should send a text message back with a concise summary.
-- **Foreground vs background**: Use foreground (default) when you need the agent's results before you can proceed — e.g., research agents whose findings inform your next steps. Use background when you have genuinely independent work to do in parallel.
-- You can optionally run agents in the background using the run_in_background parameter. When an agent runs in the background, you will be automatically notified when it completes — do NOT sleep, poll, or proactively check on its progress. Continue with other work or respond to the user instead.
-- Provide clear, detailed prompts — brief the agent like a smart colleague who just walked into the room. It hasn't seen this conversation, doesn't know what you've tried.
-- Clearly tell the agent whether you expect it to write code or just to do research (search, file reads, web fetches, etc.), since it is not aware of the user's intent
-- Never delegate understanding. Don't write "based on your findings, fix the bug." Include file paths, line numbers, what specifically to change.`,
+- Each agent has isolated context; summarize important results back to the user yourself
+- Use foreground by default when you need the result before continuing
+- Use run_in_background only for genuinely independent work; you will be notified when it completes
+- Provide concrete prompts with file paths, constraints, and whether code changes are expected`,
 	Parameters: map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -54,7 +48,7 @@ Usage notes:
 			},
 			"max_turns": map[string]any{
 				"type":        "number",
-				"description": "Maximum number of conversation turns for the agent.",
+				"description": "Maximum number of conversation turns for the agent. Built-in agents default to 100 and lower values are raised to 100.",
 			},
 			"resume": map[string]any{
 				"type":        "string",
@@ -63,7 +57,7 @@ Usage notes:
 			"mode": map[string]any{
 				"type":        "string",
 				"description": "Permission mode for spawned agent.",
-				"enum":        []string{"acceptEdits", "bypassPermissions", "default", "dontAsk", "auto"},
+				"enum":        []string{"explore", "edit", "default"},
 			},
 			"isolation": map[string]any{
 				"type":        "string",
@@ -83,73 +77,6 @@ Usage notes:
 	},
 }
 
-var continueAgentToolSchema = core.ToolSchema{
-	Name: "ContinueAgent",
-	Description: `Continue a previously spawned subagent using its saved conversation state.
-
-Use this when a completed or background worker should keep going with follow-up instructions instead of spawning a fresh worker.
-
-Usage notes:
-- Prefer task_id when continuing a background worker that was started earlier in this conversation
-- Use agent_id only when you already have a resumable agent/session ID
-- When using agent_id directly, also provide subagent_type so the runtime can restore the correct agent configuration
-- run_in_background=true starts a new background continuation and returns immediately; you will be automatically notified when it completes — do not poll or check progress
-- Foreground continuations block until the worker finishes the new instruction`,
-	Parameters: map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"task_id": map[string]any{
-				"type":        "string",
-				"description": "Background task ID for the worker you want to continue. Preferred when available. Provide either task_id, or agent_id with subagent_type.",
-			},
-			"agent_id": map[string]any{
-				"type":        "string",
-				"description": "Resumable agent/session ID to continue directly. When using agent_id, subagent_type is required.",
-			},
-			"subagent_type": map[string]any{
-				"type":        "string",
-				"description": "Agent type to use for the continuation. Required when using agent_id directly.",
-			},
-			"prompt": map[string]any{
-				"type":        "string",
-				"description": "The follow-up instruction for the existing worker.",
-			},
-			"description": map[string]any{
-				"type":        "string",
-				"description": "A short (3-5 word) description of the continuation task.",
-			},
-			"name": map[string]any{
-				"type":        "string",
-				"description": "Optional display name override for the continued agent.",
-			},
-			"run_in_background": map[string]any{
-				"type":        "boolean",
-				"description": "Set to true to continue the worker in the background. You will be notified when it completes.",
-			},
-			"model": map[string]any{
-				"type":        "string",
-				"description": "Optional model override. If omitted, inherits from parent conversation.",
-				"enum":        []string{"sonnet", "opus", "haiku"},
-			},
-			"max_turns": map[string]any{
-				"type":        "number",
-				"description": "Maximum number of conversation turns for the continuation.",
-			},
-			"mode": map[string]any{
-				"type":        "string",
-				"description": "Permission mode for the continued agent.",
-				"enum":        []string{"acceptEdits", "bypassPermissions", "default", "dontAsk", "auto"},
-			},
-			"isolation": map[string]any{
-				"type":        "string",
-				"description": "Isolation mode for the continued agent.",
-				"enum":        []string{"worktree"},
-			},
-		},
-		"required": []string{"prompt"},
-	},
-}
-
 var sendMessageToolSchema = core.ToolSchema{
 	Name: "SendMessage",
 	Description: `Send a follow-up message to an existing subagent worker.
@@ -158,7 +85,7 @@ Use this when you want to keep steering the same worker instead of spawning a fr
 
 Current runtime behavior:
 - Completed or resumable workers: supported
-- Currently running workers: supported; the message is queued and delivered at the worker's next safe turn boundary without interrupting the active turn
+- Currently running workers: not supported; wait for completion before sending a follow-up
 
 Usage notes:
 - Prefer task_id when you have a background worker from this conversation
@@ -203,12 +130,12 @@ Usage notes:
 			},
 			"max_turns": map[string]any{
 				"type":        "number",
-				"description": "Maximum number of conversation turns for the resumed run.",
+				"description": "Maximum number of conversation turns for the resumed run. Built-in agents default to 100 and lower values are raised to 100.",
 			},
 			"mode": map[string]any{
 				"type":        "string",
 				"description": "Permission mode for the resumed worker.",
-				"enum":        []string{"acceptEdits", "bypassPermissions", "default", "dontAsk", "auto"},
+				"enum":        []string{"explore", "edit", "default"},
 			},
 			"isolation": map[string]any{
 				"type":        "string",
@@ -259,35 +186,5 @@ Important:
 			},
 		},
 		"required": []string{"skill"},
-	},
-}
-
-// toolSearchSchema defines the schema for the ToolSearch tool.
-var toolSearchSchema = core.ToolSchema{
-	Name: "ToolSearch",
-	Description: `Fetches full schema definitions for deferred tools so they can be called.
-
-Deferred tools appear by name in <available-deferred-tools> messages. Until fetched, only the name is known — there is no parameter schema, so the tool cannot be invoked. This tool takes a query, matches it against the deferred tool list, and returns the matched tools' complete JSONSchema definitions inside a <functions> block. Once a tool's schema appears in that result, it is callable exactly like any tool defined at the top of the prompt.
-
-Result format: each matched tool appears as one <function>{"description": "...", "name": "...", "parameters": {...}}</function> line inside the <functions> block.
-
-Query forms:
-- "select:CronCreate,CronDelete" — fetch these exact tools by name
-- "cron schedule" — keyword search, up to max_results best matches
-- "+worktree" — require "worktree" in the name, rank by remaining terms`,
-	Parameters: map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"query": map[string]any{
-				"type":        "string",
-				"description": `Query to find deferred tools. Use "select:<tool_name>" for direct selection, or keywords to search.`,
-			},
-			"max_results": map[string]any{
-				"type":        "number",
-				"description": "Maximum number of results to return (default: 5)",
-				"default":     5,
-			},
-		},
-		"required": []string{"query"},
 	},
 }

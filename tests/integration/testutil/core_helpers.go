@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
 )
 
 // FakeLLM implements core.LLM for testing, returning queued responses.
@@ -128,6 +128,10 @@ func BuildTestTools(t *testing.T) core.Tools {
 // RunAgent sends a prompt to the agent, drains its outbox, and returns the result.
 // It sends SigStop after the first OnTurn event (single cycle).
 func RunAgent(ctx context.Context, ag core.Agent, prompt string) (core.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return core.Result{}, err
+	}
+
 	var agentErr error
 	done := make(chan struct{})
 	go func() {

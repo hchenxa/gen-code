@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/plugin"
+	"github.com/genai-io/gen-code/internal/plugin"
 )
 
 var testPluginDir string

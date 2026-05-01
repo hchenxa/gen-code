@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/search"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/search"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // WebSearchTool searches the web for information.

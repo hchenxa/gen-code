@@ -2,7 +2,7 @@
 name: test-agent
 description: A test agent for plugin UI/UX comparison
 model: haiku
-permission-mode: plan
+permission-mode: explore
 max-turns: 5
 ---
 

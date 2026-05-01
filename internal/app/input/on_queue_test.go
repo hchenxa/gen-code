@@ -3,7 +3,7 @@ package input
 import (
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 func TestQueueEnqueueDequeue(t *testing.T) {

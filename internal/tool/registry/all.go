@@ -2,12 +2,12 @@
 package registry
 
 import (
-	_ "github.com/yanmxa/gencode/internal/tool/agent"
-	_ "github.com/yanmxa/gencode/internal/tool/cron"
-	_ "github.com/yanmxa/gencode/internal/tool/fs"
-	_ "github.com/yanmxa/gencode/internal/tool/mode"
-	_ "github.com/yanmxa/gencode/internal/tool/skill"
-	_ "github.com/yanmxa/gencode/internal/tool/task"
-	_ "github.com/yanmxa/gencode/internal/tool/tasktools"
-	_ "github.com/yanmxa/gencode/internal/tool/web"
+	_ "github.com/genai-io/gen-code/internal/tool/agent"
+	_ "github.com/genai-io/gen-code/internal/tool/cron"
+	_ "github.com/genai-io/gen-code/internal/tool/fs"
+	_ "github.com/genai-io/gen-code/internal/tool/mode"
+	_ "github.com/genai-io/gen-code/internal/tool/skill"
+	_ "github.com/genai-io/gen-code/internal/tool/task"
+	_ "github.com/genai-io/gen-code/internal/tool/tasktools"
+	_ "github.com/genai-io/gen-code/internal/tool/web"
 )

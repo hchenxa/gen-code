@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/app/conv"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/tests/integration/testutil"
+	"github.com/genai-io/gen-code/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/tests/integration/testutil"
 )
 
 func newFakeClient(responses ...llm.CompletionResponse) (*llm.Client, *llm.FakeLLM) {

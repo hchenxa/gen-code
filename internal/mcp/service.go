@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 // Service is the public contract for the mcp module.

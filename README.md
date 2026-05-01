@@ -117,7 +117,22 @@ Gen Code stores configuration in `~/.gen/`:
 
 Place a `GEN.md` (or `CLAUDE.md`) in your project root to provide project-specific instructions. These are automatically loaded into the system prompt. Project-level settings can also be placed in `.gen/settings.json`.
 
-## Benchmark: Gen Code vs Claude Code
+### File-Based Configuration
+
+GenCode reads user-level files from `~/.gen/` and project-level files from `<project>/.gen/`. Project files override user defaults for that workspace.
+
+Common project files:
+
+```text
+.gen/settings.json      # Project permissions, hooks, disabled tools
+.gen/mcp.json           # Project MCP server definitions
+.gen/agents/*.md        # Project subagent definitions
+.gen/skills/*/SKILL.md  # Project skills
+.gen/commands/*.md      # Project slash commands
+GEN.md                  # Project instructions
+```
+
+## Benchmark: GenCode vs Claude Code
 
 Compared with [Claude Code](https://claude.ai/code) v2.1.112 on Apple Silicon, same model (`claude-sonnet-4-6`):
 

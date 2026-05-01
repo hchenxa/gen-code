@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/skill"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/skill"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 const (

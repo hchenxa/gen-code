@@ -9,10 +9,10 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 // OperationMode mirrors OperationMode to avoid importing setting in the render layer.
@@ -454,6 +454,9 @@ type ToolCallsParams struct {
 	TaskProgress      map[int][]string
 	PendingCalls      []core.ToolCall
 	CurrentIdx        int
+	ModelName         string
+	InputTokens       int
+	OutputTokens      int
 	SpinnerView       string
 	TaskOwnerMap      map[string]string
 	MDRenderer        *MDRenderer
@@ -527,8 +530,12 @@ func RenderToolCalls(params ToolCallsParams) string {
 		if resultData, ok := params.ResultMap[tc.ID]; ok {
 			resultData.ToolInput = tc.Input
 			sb.WriteString(RenderToolResultInline(resultData, params.MDRenderer))
-		} else if params.ParallelMode && tool.IsAgentToolName(tc.Name) {
-			sb.WriteString(renderTaskProgressInline(tc, params.PendingCalls, params.ParallelResults, params.TaskProgress))
+		} else if tool.IsAgentToolName(tc.Name) {
+			sb.WriteString(renderTaskProgressInline(tc, params.PendingCalls, params.ParallelResults, params.TaskProgress, params.ToolCallsExpanded, AgentRuntimeMeta{
+				ModelName:    params.ModelName,
+				InputTokens:  params.InputTokens,
+				OutputTokens: params.OutputTokens,
+			}))
 		}
 	}
 

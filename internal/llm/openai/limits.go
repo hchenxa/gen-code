@@ -13,7 +13,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 var openAIModelDocsBaseURL = "https://developers.openai.com/api/docs/models/"

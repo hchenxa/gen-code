@@ -6,14 +6,14 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/app/kit/history"
-	"github.com/yanmxa/gencode/internal/app/kit/suggest"
-	"github.com/yanmxa/gencode/internal/core"
-	coremcp "github.com/yanmxa/gencode/internal/mcp"
-	coreplugin "github.com/yanmxa/gencode/internal/plugin"
-	coresetting "github.com/yanmxa/gencode/internal/setting"
-	coreskill "github.com/yanmxa/gencode/internal/skill"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/app/kit/history"
+	"github.com/genai-io/gen-code/internal/app/kit/suggest"
+	"github.com/genai-io/gen-code/internal/core"
+	coremcp "github.com/genai-io/gen-code/internal/mcp"
+	coreplugin "github.com/genai-io/gen-code/internal/plugin"
+	coresetting "github.com/genai-io/gen-code/internal/setting"
+	coreskill "github.com/genai-io/gen-code/internal/skill"
 )
 
 type PastedChunk struct {

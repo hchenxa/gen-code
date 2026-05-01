@@ -5,9 +5,9 @@ package app
 import (
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/filecache"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/filecache"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 type env struct {

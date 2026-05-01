@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/secret"
+	"github.com/genai-io/gen-code/internal/secret"
 )
 
 func FuzzyMatch(str, pattern string) bool {

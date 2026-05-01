@@ -18,7 +18,7 @@ const (
 //	100:   provider      — provider-specific overrides (optional)
 //	110:   environment   — cwd, git, platform, model
 //	200:   instructions  — user + project instructions
-//	400:   capabilities  — skills, agents, deferred tools
+//	400:   capabilities  — skills, agents
 //	500:   guidelines    — tool usage, git safety
 //	700+:  extra         — skill invocation, agent identity
 type Layer struct {

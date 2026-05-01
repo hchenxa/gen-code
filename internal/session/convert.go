@@ -1,7 +1,7 @@
 package session
 
 import (
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 func ConvertToEntries(messages []core.ChatMessage) []Entry {

@@ -37,8 +37,7 @@ func testScenarios() []scenario {
 				UserInstructions:    "Always use tabs for indentation.\nPrefer short variable names.",
 				ProjectInstructions: "This is a Go project using Bubble Tea.\nRun tests with: go test ./...",
 				Skills:              "<available-skills>\nUse the Skill tool to invoke these capabilities:\n\n- git: Git workflow automation\n- review: Review a pull request\n- init: Initialize a new CLAUDE.md file\n\nInvoke with: Skill(skill=\"name\", args=\"optional args\")\n</available-skills>",
-				Agents:              "<available-agents>\nAvailable agent types for the Agent tool:\n\n- Explore: Fast codebase exploration\n  Use when: need to find files, search code, answer questions about codebase\n  Tools: Read, Glob, Grep\n- Plan: Software architect for implementation plans\n  Use when: need to plan implementation strategy\n  Tools: Read, Glob, Grep, Agent\n- general-purpose: All tools including nested Agent\n  Tools: *\n</available-agents>",
-				DeferredTools:       "<available-deferred-tools>\n- CronCreate: Schedule a prompt to run on a cron schedule\n- CronDelete: Delete a scheduled cron prompt\n- CronList: List all scheduled cron prompts\n- EnterWorktree: Create an isolated git worktree for agent work\n- ExitWorktree: Leave and clean up a git worktree\n</available-deferred-tools>",
+				Agents:              "<available-agents>\nAvailable agent types for the Agent tool:\n\n- general-purpose: General multi-step agent\n  Use with mode=explore for non-mutating codebase investigation, mode=edit for file edits, or default for full access\n  Tools: *\n- code-reviewer: Reviews code changes without mutating the workspace\n  Tools: Read, Glob, Grep, WebFetch, WebSearch\n</available-agents>",
 			},
 		},
 		{
@@ -51,7 +50,7 @@ func testScenarios() []scenario {
 				UserInstructions:    "Always use tabs for indentation.",
 				ProjectInstructions: "This is a Go project.",
 				Skills:              "<available-skills>\nUse the Skill tool to invoke these capabilities:\n\n- review: Review a pull request\n\nInvoke with: Skill(skill=\"name\", args=\"optional args\")\n</available-skills>",
-				Agents:              "<available-agents>\nAvailable agent types for the Agent tool:\n\n- Explore: Fast codebase exploration\n  Tools: Read, Glob, Grep\n</available-agents>",
+				Agents:              "<available-agents>\nAvailable agent types for the Agent tool:\n\n- general-purpose: General multi-step agent\n  Use with mode=explore for non-mutating codebase investigation\n  Tools: *\n</available-agents>",
 			},
 		},
 		{
@@ -65,7 +64,7 @@ func testScenarios() []scenario {
 				UserInstructions:    "Short variable names.",
 				ProjectInstructions: "Go project.",
 				Extra: []ExtraLayer{
-					{Name: "agent-identity", Content: "## Agent Type: Explore\nFast agent specialized for exploring codebases.\n\n## Mode: Read-Only\nYou are in read-only mode. You can only use tools that read information (Read, Glob, Grep, WebFetch, WebSearch). Do not attempt to modify any files.\n\n## Guidelines\n- Focus on completing your assigned task efficiently\n- Return a clear summary when your task is complete\n- If you encounter errors, report them clearly\n"},
+					{Name: "agent-identity", Content: "## Agent Type: general-purpose\nGeneral-purpose agent for researching complex questions, searching for code, and executing multi-step tasks.\n\n## Mode: Explore\nYou are in explore mode. You can use non-mutating research tools such as Read, Glob, Grep, WebFetch, and WebSearch. Do not modify files, execute shell commands, or change the workspace.\n\n## Guidelines\n- Focus on completing your assigned task efficiently\n- Return a clear summary when your task is complete\n- If you encounter errors, report them clearly\n"},
 				},
 			},
 		},
@@ -80,9 +79,9 @@ func testScenarios() []scenario {
 				UserInstructions:    "Short variable names.",
 				ProjectInstructions: "Go project.",
 				Skills:              "<available-skills>\nUse the Skill tool to invoke these capabilities:\n\n- git: Git workflow automation\n\nInvoke with: Skill(skill=\"name\", args=\"optional args\")\n</available-skills>",
-				Agents:              "<available-agents>\nAvailable agent types for the Agent tool:\n\n- Explore: Fast codebase exploration\n  Tools: Read, Glob, Grep\n</available-agents>",
+				Agents:              "<available-agents>\nAvailable agent types for the Agent tool:\n\n- code-reviewer: Reviews code changes without mutating the workspace\n  Tools: Read, Glob, Grep, WebFetch, WebSearch\n</available-agents>",
 				Extra: []ExtraLayer{
-					{Name: "agent-identity", Content: "## Agent Type: general-purpose\nGeneral-purpose agent for researching complex questions and executing multi-step tasks.\n\n## Mode: Autonomous\nYou have full autonomy to complete your task.\n\n## Guidelines\n- Focus on completing your assigned task efficiently\n- Return a clear summary when your task is complete\n- If you encounter errors, report them clearly\n"},
+					{Name: "agent-identity", Content: "## Agent Type: general-purpose\nGeneral-purpose agent for researching complex questions and executing multi-step tasks.\n\n## Mode: Edit\nYou may edit files when needed. Other operations follow the normal permission flow.\n\n## Guidelines\n- Focus on completing your assigned task efficiently\n- Return a clear summary when your task is complete\n- If you encounter errors, report them clearly\n"},
 				},
 			},
 		},
@@ -190,7 +189,6 @@ func TestScenarioMainSession_HasAllSections(t *testing.T) {
 		{"project instructions", "<project-instructions>"},
 		{"skills", "<available-skills>"},
 		{"agents", "<available-agents>"},
-		{"deferred tools", "<available-deferred-tools>"},
 		{"core tool guidelines", "# Tool usage"},
 		{"git guidelines", "Git safety (Bash)"},
 		{"question guidelines", "AskUserQuestion"},
@@ -241,17 +239,17 @@ func TestScenarioSubagentReadonly_NoCapabilities(t *testing.T) {
 	sys := Build(cfg)
 	prompt := sys.Prompt()
 
-	if !strings.Contains(prompt, "Agent Type: Explore") {
+	if !strings.Contains(prompt, "Agent Type: general-purpose") {
 		t.Error("should contain agent type header")
 	}
-	if !strings.Contains(prompt, "Read-Only") {
-		t.Error("should contain read-only mode")
+	if !strings.Contains(prompt, "Mode: Explore") {
+		t.Error("should contain explore mode")
 	}
 	if strings.Contains(prompt, "<available-skills>") {
-		t.Error("read-only subagent should NOT have skills section")
+		t.Error("explore subagent should NOT have skills section")
 	}
 	if strings.Contains(prompt, "<available-agents>") {
-		t.Error("read-only subagent should NOT have agents section")
+		t.Error("explore subagent should NOT have agents section")
 	}
 	if strings.Contains(prompt, "AskUserQuestion") {
 		t.Error("subagent should NOT have question guidelines")
@@ -277,8 +275,8 @@ func TestScenarioSubagentGeneral_HasCapabilities(t *testing.T) {
 	if !strings.Contains(prompt, "Agent Type: general-purpose") {
 		t.Error("should contain agent type header")
 	}
-	if !strings.Contains(prompt, "Autonomous") {
-		t.Error("should contain autonomous mode")
+	if !strings.Contains(prompt, "Mode: Edit") {
+		t.Error("should contain edit mode")
 	}
 	if !strings.Contains(prompt, "<available-skills>") {
 		t.Error("general-purpose subagent should have skills section")
@@ -296,7 +294,6 @@ func TestLayerOrdering(t *testing.T) {
 		ProjectInstructions: "PROJECT_MARKER",
 		Skills:              "SKILLS_MARKER",
 		Agents:              "AGENTS_MARKER",
-		DeferredTools:       "DEFERRED_MARKER",
 	})
 
 	prompt := sys.Prompt()
@@ -308,7 +305,6 @@ func TestLayerOrdering(t *testing.T) {
 		"project":    strings.Index(prompt, "PROJECT_MARKER"),
 		"skills":     strings.Index(prompt, "SKILLS_MARKER"),
 		"agents":     strings.Index(prompt, "AGENTS_MARKER"),
-		"deferred":   strings.Index(prompt, "DEFERRED_MARKER"),
 		"guidelines": strings.Index(prompt, "# Tool usage"),
 	}
 
@@ -318,7 +314,7 @@ func TestLayerOrdering(t *testing.T) {
 		}
 	}
 
-	order := []string{"identity", "env", "user", "project", "skills", "agents", "deferred", "guidelines"}
+	order := []string{"identity", "env", "user", "project", "skills", "agents", "guidelines"}
 	for i := 1; i < len(order); i++ {
 		if indices[order[i-1]] >= indices[order[i]] {
 			t.Errorf("%s (idx=%d) should appear before %s (idx=%d)", order[i-1], indices[order[i-1]], order[i], indices[order[i]])
@@ -364,18 +360,5 @@ func TestConditionalGitGuidelines(t *testing.T) {
 
 	if len(promptWithGit) <= len(promptWithoutGit) {
 		t.Error("git prompt should be longer than non-git prompt")
-	}
-}
-
-func TestDeferredToolsWithDescriptions(t *testing.T) {
-	deferred := "<available-deferred-tools>\n- CronCreate: Schedule a prompt\n- EnterWorktree: Create worktree\n</available-deferred-tools>"
-	sys := Build(Config{
-		Cwd:           "/tmp/test",
-		DeferredTools: deferred,
-	})
-	prompt := sys.Prompt()
-
-	if !strings.Contains(prompt, "CronCreate: Schedule a prompt") {
-		t.Error("deferred tools should include descriptions")
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 //go:embed prompts/*.txt
@@ -48,7 +48,6 @@ type Config struct {
 	ProjectInstructions string
 	Skills              string
 	Agents              string
-	DeferredTools       string
 	Extra               []ExtraLayer
 }
 
@@ -81,7 +80,7 @@ func Build(cfg Config) core.System {
 		})
 	}
 
-	if caps := joinNonEmpty(cfg.Skills, cfg.Agents, cfg.DeferredTools); caps != "" {
+	if caps := joinNonEmpty(cfg.Skills, cfg.Agents); caps != "" {
 		sys.Set(core.Layer{
 			Name: "capabilities", Priority: 400,
 			Content: caps, Source: core.FromFile,

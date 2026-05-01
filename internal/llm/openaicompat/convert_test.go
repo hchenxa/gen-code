@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 func TestConvertMessagesConvertsRoleToolResultToToolMessage(t *testing.T) {

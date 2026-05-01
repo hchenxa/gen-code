@@ -11,18 +11,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yanmxa/gencode/internal/app/conv"
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/command"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/cron"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/mcp"
-	"github.com/yanmxa/gencode/internal/plugin"
-	"github.com/yanmxa/gencode/internal/session"
-	"github.com/yanmxa/gencode/internal/skill"
-	"github.com/yanmxa/gencode/internal/task/tracker"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/command"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/cron"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/plugin"
+	"github.com/genai-io/gen-code/internal/session"
+	"github.com/genai-io/gen-code/internal/skill"
+	"github.com/genai-io/gen-code/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 type commandHandler func(*CommandController, context.Context, string) (string, tea.Cmd, error)
@@ -61,7 +61,6 @@ type CommandDeps struct {
 	SetThinkingEffort  func(string)
 	EnsureSessionStore func(cwd string) error
 	ForkSession        func() (originalSessionID string, err error)
-	ResetFetched       func()
 
 	// Existing callbacks
 	CommitMessages          func() []tea.Cmd
@@ -268,9 +267,6 @@ func (c *CommandController) handleClearCommand(_ context.Context, _ string) (str
 	c.deps.Conversation.Clear()
 	c.deps.ResetTokens()
 	c.deps.Tracker.Reset()
-	if c.deps.ResetFetched != nil {
-		c.deps.ResetFetched()
-	}
 	c.deps.ResetCronQueue()
 	cmds := []tea.Cmd{tea.ClearScreen}
 	if os.Getenv("TMUX") != "" {

@@ -10,11 +10,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/search"
-	"github.com/yanmxa/gencode/internal/secret"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/search"
+	"github.com/genai-io/gen-code/internal/secret"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 type searchItem struct {

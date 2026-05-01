@@ -9,7 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/yanmxa/gencode/internal/log"
+	"github.com/genai-io/gen-code/internal/log"
 )
 
 type RestoredFile struct {

@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/session/transcript"
-	"github.com/yanmxa/gencode/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/session/transcript"
+	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
 type Store struct {

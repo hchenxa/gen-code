@@ -11,9 +11,9 @@ import (
 
 	"github.com/openai/openai-go/v3"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/llm/openaicompat"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/llm/openaicompat"
 )
 
 // Client implements the Provider interface for Moonshot AI using the OpenAI SDK.

@@ -3,7 +3,7 @@ package conv
 import (
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 type MessageRenderParams struct {
@@ -13,6 +13,9 @@ type MessageRenderParams struct {
 	BuildingTool            string
 	PendingCalls            []core.ToolCall
 	CurrentIdx              int
+	ModelName               string
+	InputTokens             int
+	OutputTokens            int
 	Width                   int
 	MDRenderer              *MDRenderer
 	SpinnerView             string
@@ -156,6 +159,9 @@ func renderAssistantWithTools(p MessageRenderParams, msg core.ChatMessage, idx i
 		TaskProgress:      p.TaskProgress,
 		PendingCalls:      p.PendingCalls,
 		CurrentIdx:        p.CurrentIdx,
+		ModelName:         p.ModelName,
+		InputTokens:       p.InputTokens,
+		OutputTokens:      p.OutputTokens,
 		SpinnerView:       p.SpinnerView,
 		TaskOwnerMap:      p.TaskOwnerMap,
 		MDRenderer:        p.MDRenderer,

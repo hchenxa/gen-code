@@ -3,7 +3,7 @@ package tool
 import (
 	"context"
 
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // MCPExecutor executes MCP tool calls for the shared tool runtime.

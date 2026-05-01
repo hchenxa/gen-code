@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // Registry manages tool registration and execution
@@ -79,12 +79,6 @@ func (r *Registry) Execute(ctx context.Context, name string, params map[string]a
 	}
 	return tool.Execute(ctx, params, cwd)
 }
-
-// ResetFetched clears all fetched deferred tools (delegates to package-level).
-func (r *Registry) ResetFetched() { ResetFetched() }
-
-// FormatDeferredToolsPrompt returns the deferred tools system prompt section.
-func (r *Registry) FormatDeferredToolsPrompt() string { return FormatDeferredToolsPrompt() }
 
 // PopSideEffect retrieves and removes the side effect for a tool call.
 func (r *Registry) PopSideEffect(toolCallID string) any { return PopSideEffect(toolCallID) }

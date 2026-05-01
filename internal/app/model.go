@@ -17,27 +17,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"go.uber.org/zap"
 
-	"github.com/yanmxa/gencode/internal/app/conv"
-	"github.com/yanmxa/gencode/internal/app/hub"
-	"github.com/yanmxa/gencode/internal/app/input"
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/app/trigger"
-	"github.com/yanmxa/gencode/internal/command"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/filecache"
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/llm/minmax"
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/mcp"
-	"github.com/yanmxa/gencode/internal/plugin"
-	"github.com/yanmxa/gencode/internal/session"
-	"github.com/yanmxa/gencode/internal/setting"
-	"github.com/yanmxa/gencode/internal/skill"
-	"github.com/yanmxa/gencode/internal/subagent"
-	"github.com/yanmxa/gencode/internal/task"
-	"github.com/yanmxa/gencode/internal/task/tracker"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/app/hub"
+	"github.com/genai-io/gen-code/internal/app/input"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/app/trigger"
+	"github.com/genai-io/gen-code/internal/command"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/filecache"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/llm/minmax"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/plugin"
+	"github.com/genai-io/gen-code/internal/session"
+	"github.com/genai-io/gen-code/internal/setting"
+	"github.com/genai-io/gen-code/internal/skill"
+	"github.com/genai-io/gen-code/internal/subagent"
+	"github.com/genai-io/gen-code/internal/task"
+	"github.com/genai-io/gen-code/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 const defaultWidth = 80
@@ -388,7 +388,6 @@ func (m *model) loadSessionByID(id string) error {
 	if len(sess.Tasks) == 0 {
 		m.services.Tracker.Reset()
 	}
-	m.services.Tool.ResetFetched()
 
 	m.env.InputTokens = 0
 	m.env.OutputTokens = 0

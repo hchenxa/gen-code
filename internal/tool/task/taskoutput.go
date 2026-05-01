@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/task"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/task"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 const (
@@ -117,7 +117,7 @@ func (t *TaskOutputTool) Execute(ctx context.Context, params map[string]any, cwd
 		output += fmt.Sprintf("Duration: %v\n", info.EndTime.Sub(info.StartTime))
 	}
 	if info.Type == task.TaskTypeAgent && info.AgentSessionID != "" {
-		output += fmt.Sprintf("Resume: ContinueAgent(task_id=\"%s\", prompt=\"...\") or Agent(resume=\"%s\", subagent_type=\"%s\", description=\"...\", prompt=\"...\")\n",
+		output += fmt.Sprintf("Resume: SendMessage(task_id=\"%s\", message=\"...\") or Agent(resume=\"%s\", subagent_type=\"%s\", description=\"...\", prompt=\"...\")\n",
 			info.ID, info.AgentSessionID, agentTypeForResume(info))
 	}
 	if info.Output != "" {

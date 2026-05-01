@@ -7,19 +7,19 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yanmxa/gencode/internal/agent"
-	"github.com/yanmxa/gencode/internal/app/conv"
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/core/system"
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/mcp"
-	"github.com/yanmxa/gencode/internal/setting"
-	"github.com/yanmxa/gencode/internal/subagent"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/agent"
+	"github.com/genai-io/gen-code/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/core/system"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/setting"
+	"github.com/genai-io/gen-code/internal/subagent"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
 )
 
 // ============================================================
@@ -53,7 +53,6 @@ func (m *model) buildAgentParams() agent.BuildParams {
 		ProjectInstructions: m.env.CachedProjectInstructions,
 		SkillsPrompt:        m.services.Skill.PromptSection(),
 		AgentsPrompt:        m.services.Subagent.PromptSection(),
-		DeferredToolsPrompt: m.services.Tool.FormatDeferredToolsPrompt(),
 		Extra:               extra,
 
 		DisabledTools: m.services.Setting.DisabledTools(),
@@ -204,7 +203,7 @@ func (m *model) ReconfigureAgentTool() {
 
 	adapter := subagent.NewExecutorAdapter(executor)
 	type executorSetter interface{ SetExecutor(tool.AgentExecutor) }
-	for _, name := range []string{tool.ToolAgent, tool.ToolContinueAgent, tool.ToolSendMessage} {
+	for _, name := range []string{tool.ToolAgent, tool.ToolSendMessage} {
 		if t, ok := m.services.Tool.Get(name); ok {
 			if setter, ok := t.(executorSetter); ok {
 				setter.SetExecutor(adapter)

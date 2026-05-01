@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPO="yanmxa/gencode"
+REPO="genai-io/gen-code"
 BINARY="gen"
 INSTALL_DIR="${HOME}/.local/bin"
 

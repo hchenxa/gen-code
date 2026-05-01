@@ -2,13 +2,15 @@ package conv
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 // ProgressUpdateMsg carries a task progress update from an agent.
@@ -118,8 +120,8 @@ func (h *ProgressHub) Drain(taskProgress map[int][]string) map[int][]string {
 				taskProgress = make(map[int][]string)
 			}
 			taskProgress[u.Index] = append(taskProgress[u.Index], u.Message)
-			if len(taskProgress[u.Index]) > 5 {
-				taskProgress[u.Index] = taskProgress[u.Index][1:]
+			if len(taskProgress[u.Index]) > maxAgentProgressHistory {
+				taskProgress[u.Index] = taskProgress[u.Index][len(taskProgress[u.Index])-maxAgentProgressHistory:]
 			}
 		default:
 			return taskProgress
@@ -127,9 +129,21 @@ func (h *ProgressHub) Drain(taskProgress map[int][]string) map[int][]string {
 	}
 }
 
+// maxAgentProgressHistory is the maximum number of progress lines retained per agent.
+const maxAgentProgressHistory = 12
+
 // maxAgentProgressLines is the maximum number of progress lines to display.
 // Older lines scroll off the top, keeping the view compact.
 const maxAgentProgressLines = 8
+
+// maxCompactAgentToolLines is the number of recent tool calls shown while collapsed.
+const maxCompactAgentToolLines = 3
+
+type AgentRuntimeMeta struct {
+	ModelName    string
+	InputTokens  int
+	OutputTokens int
+}
 
 // renderAgentProgress renders the most recent agent progress lines,
 // capped at maxAgentProgressLines to keep the view height bounded.
@@ -153,7 +167,7 @@ func renderAgentProgress(progress []string) string {
 
 // renderTaskProgressInline renders live progress for a parallel Agent tool call.
 // Spinner is on the header line; this only renders progress lines below it.
-func renderTaskProgressInline(tc core.ToolCall, pendingCalls []core.ToolCall, parallelResults map[int]bool, taskProgress map[int][]string) string {
+func renderTaskProgressInline(tc core.ToolCall, pendingCalls []core.ToolCall, parallelResults map[int]bool, taskProgress map[int][]string, expanded bool, meta AgentRuntimeMeta) string {
 	idx := -1
 	for i, pending := range pendingCalls {
 		if pending.ID == tc.ID {
@@ -172,7 +186,99 @@ func renderTaskProgressInline(tc core.ToolCall, pendingCalls []core.ToolCall, pa
 		}
 	}
 
-	return renderAgentProgress(taskProgress[idx])
+	progress := taskProgress[idx]
+	if expanded {
+		return renderAgentProgress(progress)
+	}
+	return renderCompactAgentProgress(tc.Input, progress, meta)
+}
+
+func renderCompactAgentProgress(input string, progress []string, meta AgentRuntimeMeta) string {
+	if len(progress) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	if summary := formatAgentRuntimeSummary(input, progress, meta); summary != "" {
+		sb.WriteString(toolResultStyle.Render("  ⎿  "+summary) + "\n")
+	}
+
+	toolLines := recentAgentToolProgress(progress, maxCompactAgentToolLines)
+	for _, line := range toolLines {
+		sb.WriteString(toolResultStyle.Render("  ⎿  "+line) + "\n")
+	}
+	return sb.String()
+}
+
+func formatAgentRuntimeSummary(input string, progress []string, meta AgentRuntimeMeta) string {
+	parts := make([]string, 0, 4)
+	if model := agentModelFromInput(input, meta.ModelName); model != "" {
+		parts = append(parts, "model: "+model)
+	}
+	if mode := agentModeFromInput(input, progress); mode != "" {
+		parts = append(parts, "mode: "+mode)
+	}
+	if n := len(recentAgentToolProgress(progress, 0)); n > 0 {
+		parts = append(parts, fmt.Sprintf("tools: %d", n))
+	}
+	if tokens := formatRuntimeTokens(meta.InputTokens, meta.OutputTokens); tokens != "" {
+		parts = append(parts, "tokens: "+tokens)
+	}
+	return strings.Join(parts, "   ")
+}
+
+func agentModelFromInput(input, fallback string) string {
+	var params map[string]any
+	if err := json.Unmarshal([]byte(input), &params); err == nil {
+		if model, ok := params["model"].(string); ok && model != "" {
+			return model
+		}
+	}
+	return fallback
+}
+
+func agentModeFromInput(input string, progress []string) string {
+	var params map[string]any
+	if err := json.Unmarshal([]byte(input), &params); err == nil {
+		if mode, ok := params["mode"].(string); ok && mode != "" {
+			return mode
+		}
+	}
+	for _, line := range progress {
+		if after, ok := strings.CutPrefix(line, "Mode: "); ok {
+			mode, _, _ := strings.Cut(after, " · ")
+			return strings.TrimSpace(mode)
+		}
+	}
+	return "default"
+}
+
+func formatRuntimeTokens(inputTokens, outputTokens int) string {
+	if inputTokens <= 0 && outputTokens <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("↑%s ↓%s", kit.FormatTokenCount(inputTokens), kit.FormatTokenCount(outputTokens))
+}
+
+func recentAgentToolProgress(progress []string, limit int) []string {
+	lines := make([]string, 0, len(progress))
+	for _, line := range progress {
+		if isAgentToolProgressLine(line) {
+			lines = append(lines, line)
+		}
+	}
+	if limit > 0 && len(lines) > limit {
+		lines = lines[len(lines)-limit:]
+	}
+	return lines
+}
+
+func isAgentToolProgressLine(line string) bool {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "Mode: ") || line == "Thinking..." {
+		return false
+	}
+	return true
 }
 
 // PendingToolSpinnerParams holds the parameters for rendering a pending tool spinner.

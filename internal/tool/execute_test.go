@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 type testPermissionAwareTool struct{}

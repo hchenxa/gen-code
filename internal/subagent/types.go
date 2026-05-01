@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/tool"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,18 +18,12 @@ import (
 type PermissionMode string
 
 const (
-	// PermissionDefault uses normal permission flow
+	// PermissionDefault uses the default subagent permission flow.
 	PermissionDefault PermissionMode = "default"
-	// PermissionAcceptEdits auto-accepts file edits but prompts for other operations
-	PermissionAcceptEdits PermissionMode = "acceptEdits"
-	// PermissionDontAsk auto-accepts all operations
-	PermissionDontAsk PermissionMode = "dontAsk"
-	// PermissionPlan is read-only mode (plan mode)
-	PermissionPlan PermissionMode = "plan"
-	// PermissionBypassPermissions auto-approves everything without asking
-	PermissionBypassPermissions PermissionMode = "bypassPermissions"
-	// PermissionAuto automatically determines the best permission level
-	PermissionAuto PermissionMode = "auto"
+	// PermissionEdit auto-accepts file edits but prompts for other operations.
+	PermissionEdit PermissionMode = "edit"
+	// PermissionExplore only allows non-mutating exploration tools.
+	PermissionExplore PermissionMode = "explore"
 )
 
 // ToolList is a list of tool names with flexible YAML parsing.

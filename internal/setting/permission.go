@@ -14,7 +14,7 @@ var safeTools = map[string]bool{
 	"WebFetch": true, "WebSearch": true, "LSP": true,
 	"TaskCreate": true, "TaskGet": true, "TaskList": true, "TaskUpdate": true,
 	"AskUserQuestion": true,
-	"CronList":        true, "ToolSearch": true,
+	"CronList":        true,
 }
 
 // PermissionBehavior represents the outcome of a permission check.

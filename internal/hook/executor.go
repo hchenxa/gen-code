@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 // FilterToolCallsResult holds the results from PreToolUse hook filtering.

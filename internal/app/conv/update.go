@@ -4,10 +4,10 @@ package conv
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 // Update routes all output-path messages: agent outbox, permission bridge,
@@ -231,8 +231,8 @@ func (m *OutputModel) HandleProgress(msg ProgressUpdateMsg) tea.Cmd {
 	}
 	m.TaskProgress[msg.Index] = append(m.TaskProgress[msg.Index], msg.Message)
 	// Cap progress entries per agent to prevent unbounded growth
-	if len(m.TaskProgress[msg.Index]) > 5 {
-		m.TaskProgress[msg.Index] = m.TaskProgress[msg.Index][len(m.TaskProgress[msg.Index])-5:]
+	if len(m.TaskProgress[msg.Index]) > maxAgentProgressHistory {
+		m.TaskProgress[msg.Index] = m.TaskProgress[msg.Index][len(m.TaskProgress[msg.Index])-maxAgentProgressHistory:]
 	}
 
 	if m.ProgressHub == nil {

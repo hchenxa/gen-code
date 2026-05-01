@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	coreplugin "github.com/yanmxa/gencode/internal/plugin"
+	coreplugin "github.com/genai-io/gen-code/internal/plugin"
 )
 
 // ── Commands ─────────────────────────────────────────────────────────────────

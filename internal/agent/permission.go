@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/yanmxa/gencode/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/tool/perm"
 )
 
 // PermDecisionResult holds a permission decision and its reason.

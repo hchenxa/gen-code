@@ -1,4 +1,4 @@
-# Feature 3: Tool System (38 Tools)
+# Feature 3: Tool System
 
 ## Overview
 
@@ -15,7 +15,7 @@ Built-in tools that the LLM can call during a conversation. Tools are executed a
 | Worktree | EnterWorktree, ExitWorktree |
 | Agent | Agent, AskUserQuestion, Skill |
 | Scheduling | CronCreate, CronDelete, CronList |
-| System | Set, ToolSearch, SendMessage |
+| System | Set, SendMessage |
 | MCP | ListMcpResourcesTool, ReadMcpResourceTool |
 
 ## How Tool Execution Works
@@ -134,9 +134,6 @@ func TestAskUserQuestion_ReturnsAnswer(t *testing.T) {
     // AskUserQuestion must inject question and capture response
 }
 
-func TestToolSearch_FindsTools(t *testing.T) {
-    // ToolSearch must return matching tools for a query
-}
 ```
 
 ## Interactive Tests (tmux)
@@ -218,11 +215,11 @@ sleep 3
 tmux capture-pane -t t_tools -p
 # Expected: AskUserQuestion prompt appears in the TUI
 
-# Test 11: ToolSearch discovery
-tmux send-keys -t t_tools 'find the right tool for listing scheduled jobs' Enter
+# Test 11: Cron tool availability
+tmux send-keys -t t_tools 'list scheduled jobs' Enter
 sleep 4
 tmux capture-pane -t t_tools -p
-# Expected: ToolSearch suggests CronList or related tools
+# Expected: CronList or related scheduling tool is used
 
 tmux kill-session -t t_tools
 rm -f /tmp/gentest.txt /tmp/gentest_edit.txt

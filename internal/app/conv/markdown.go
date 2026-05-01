@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/app/kit"
 )
 
 // MDRenderer renders markdown content to styled terminal output using glamour.

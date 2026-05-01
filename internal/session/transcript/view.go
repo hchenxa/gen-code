@@ -3,7 +3,7 @@ package transcript
 import (
 	"time"
 
-	"github.com/yanmxa/gencode/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
 type MetadataView struct {

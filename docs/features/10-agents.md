@@ -4,7 +4,7 @@
 
 Agents are defined in AGENT.md files. They run their own `core.Loop` with an independent system prompt, tool set, and permission mode. They can be invoked headlessly or spawned from within the TUI via the `Agent` tool.
 
-For the built-in `Explore` agent contract, see [Feature 22](./22-explore-agent.md).
+For the `explore` permission mode contract, see [Feature 22](./22-explore-agent.md).
 
 **AGENT.md frontmatter:**
 
@@ -29,12 +29,9 @@ mcp-servers: []
 
 | Mode | Behavior |
 |------|----------|
-| `default` | Interactive prompts |
-| `acceptEdits` | Auto-accept edits |
-| `dontAsk` | Convert prompts to denials |
-| `plan` | Read-only |
-| `bypassPermissions` | Auto-approve all |
-| `auto` | Autonomous |
+| `explore` | Non-mutating investigation only: Read, Glob, Grep, WebFetch, WebSearch |
+| `edit` | File edits allowed; tools requiring approval are unavailable to subagents |
+| `default` | Default subagent access |
 
 **Headless execution:**
 
@@ -67,18 +64,18 @@ Covered:
 TestAgentLazyLoading                        — agents loaded on demand
 
 # Integration tests
-TestAgent_ExploreAgent                      — built-in Explore agent execution
+TestAgent_GeneralExploreMode                — general-purpose agent in explore mode
 TestAgent_UnknownAgent                      — unknown agent returns error
 TestAgent_MaxTurnsRespected                 — max-turns limit enforced
 TestAgent_ModelResolution                   — model inheritance and override
-TestAgent_PlanPermissionMode_BlocksWrites   — plan mode blocks writes in agent
+TestAgent_ExploreMode_BlocksWrites          — explore mode blocks writes in agent
 TestAgent_SubagentHooks_Fire                — SubagentStart and SubagentStop hooks fire
 TestAgent_BackgroundExecution               — background agent tracked in task system
 TestExecuteSubmitRequest_CancelsPendingToolsBeforeNewTurn — a new user turn closes pending tool_use blocks before continuing
 
 # Executor tests
 TestPrepareRunConfigRespectsOverrides              — run config overrides work
-TestPrepareRunConfigUsesResolvedPlanModePrompt      — plan mode prompt resolved
+TestPrepareRunConfigUsesResolvedExploreModePrompt        — explore mode prompt resolved
 TestBuildCancelledAgentResultUsesPreparedRunMetadata — cancelled agent metadata
 ```
 
@@ -101,12 +98,12 @@ func TestAgent_IndependentSystemPrompt(t *testing.T) {
     // Agent must use its own AGENT.md content as system prompt
 }
 
-func TestAgent_DontAskMode_DeniesPrompts(t *testing.T) {
-    // Agent with dontAsk mode must deny all permission prompts
+func TestAgent_ExploreMode_FiltersToolSchemas(t *testing.T) {
+    // Agent with explore mode must only expose non-mutating tools
 }
 
-func TestAgent_AutoMode_Autonomous(t *testing.T) {
-    // Agent with auto mode must execute without prompts
+func TestAgent_EditMode_BlocksApprovalOnlyTools(t *testing.T) {
+    // Agent with edit mode can write files but cannot run approval-only tools
 }
 
 ```
@@ -180,13 +177,13 @@ sleep 10
 tmux capture-pane -t t_agent -p
 # Expected: TaskOutput with block=true may wait; final output is shown when the task completes
 
-# Test 8: Agent with plan permission mode (read-only)
+# Test 8: Agent with explore permission mode
 cat > /tmp/agent_test/.gen/agents/ReadOnly.md << 'EOF'
 ---
-name: ReadOnly
-description: Read-only agent
+name: Explorer
+description: Explore-only agent
 model: inherit
-permission-mode: plan
+permission-mode: explore
 tools:
   - Read
   - Glob
@@ -194,13 +191,13 @@ tools:
 max-turns: 5
 ---
 
-You are a read-only agent. Try to read and write files.
+You are an explore-mode agent. Try to read and write files.
 EOF
 tmux send-keys -t t_agent C-t
-tmux send-keys -t t_agent 'use the ReadOnly agent to create a file test.txt' Enter
+tmux send-keys -t t_agent 'use the Explorer agent to create a file test.txt' Enter
 sleep 10
 tmux capture-pane -t t_agent -p
-# Expected: agent cannot write — Write tool blocked by plan mode
+# Expected: agent cannot write — Write tool blocked by explore mode
 
 tmux kill-session -t t_agent
 rm -rf /tmp/agent_test

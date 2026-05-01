@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/core/system"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/core/system"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 // BuildParams contains all values needed to construct a core.Agent.
@@ -27,7 +27,6 @@ type BuildParams struct {
 	ProjectInstructions string
 	SkillsPrompt        string
 	AgentsPrompt        string
-	DeferredToolsPrompt string
 	Extra               []system.ExtraLayer
 
 	DisabledTools map[string]bool
@@ -54,7 +53,6 @@ func buildAgent(p BuildParams) (core.Agent, *PermissionBridge, error) {
 		ProjectInstructions: p.ProjectInstructions,
 		Skills:              p.SkillsPrompt,
 		Agents:              p.AgentsPrompt,
-		DeferredTools:       p.DeferredToolsPrompt,
 		Extra:               p.Extra,
 	})
 
@@ -71,12 +69,18 @@ func buildAgent(p BuildParams) (core.Agent, *PermissionBridge, error) {
 	if p.InteractionFunc != nil {
 		adaptOpts = append(adaptOpts, tool.WithInteraction(p.InteractionFunc))
 	}
+	pb := NewPermissionBridge(p.PermissionDecider)
+	var ag core.Agent
+	adaptOpts = append(adaptOpts, tool.WithMessagesGetterProvider(func() []core.Message {
+		if ag == nil {
+			return nil
+		}
+		return ag.Messages()
+	}))
 	tools := tool.AdaptToolRegistry(schemas, cwdFunc, adaptOpts...)
 	for _, t := range p.MCPTools {
 		tools.Add(t)
 	}
-
-	pb := NewPermissionBridge(p.PermissionDecider)
 
 	compactClient := client
 	compactFunc := func(ctx context.Context, msgs []core.Message) (string, error) {
@@ -92,7 +96,7 @@ func buildAgent(p BuildParams) (core.Agent, *PermissionBridge, error) {
 		return summary, nil
 	}
 
-	ag := core.NewAgent(core.Config{
+	ag = core.NewAgent(core.Config{
 		ID:          "main",
 		LLM:         client,
 		System:      sys,

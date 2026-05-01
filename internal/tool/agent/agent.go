@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 const backgroundLaunchSuffix = "\n\nThe agent is working in the background. You will be notified automatically when it completes.\nBriefly tell the user what you launched and end your response. Do not generate any other text — agent results will arrive in a subsequent message."
@@ -171,6 +171,11 @@ func (t *AgentTool) execute(ctx context.Context, params map[string]any, cwd stri
 	if fork {
 		if getter, ok := params["_messagesGetter"].(tool.MessagesGetter); ok {
 			parentMessages = getter()
+		}
+		if len(parentMessages) == 0 {
+			if getter := tool.GetMessagesGetter(ctx); getter != nil {
+				parentMessages = getter()
+			}
 		}
 		if len(parentMessages) == 0 {
 			return toolresult.NewErrorResult(t.Name(), "fork requires parent conversation context but none is available")

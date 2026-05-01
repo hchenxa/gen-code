@@ -156,11 +156,9 @@ subagent.Initialize(cwd)
 │
 ├─ 1. Register built-in agents:
 │     ┌────────────────────────────────────────────┐
-│     │  explore         read-only codebase search │
-│     │  plan            architecture planning     │
-│     │  general-purpose all tools (default)       │
-│     │  code-simplifier auto-accept edits         │
-│     │  code-reviewer   read-only review          │
+│     │  general-purpose multi-step work           │
+│     │  code-simplifier edit-mode cleanup         │
+│     │  code-reviewer   explore-mode review       │
 │     └────────────────────────────────────────────┘
 │
 ├─ 2. Load custom agents (later overrides earlier):

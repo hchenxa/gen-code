@@ -12,11 +12,11 @@ import (
 	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/llm/openaicompat"
-	streamutil "github.com/yanmxa/gencode/internal/llm/stream"
-	"github.com/yanmxa/gencode/internal/log"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/llm/openaicompat"
+	streamutil "github.com/genai-io/gen-code/internal/llm/stream"
+	"github.com/genai-io/gen-code/internal/log"
 )
 
 // Client implements the Provider interface using the OpenAI SDK

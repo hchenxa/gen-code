@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 func Test_extractIntField(t *testing.T) {
@@ -313,7 +313,7 @@ func TestRenderToolCallsShowsGapForPendingAgent(t *testing.T) {
 	}
 
 	rendered := RenderToolCalls(params)
-	if !strings.Contains(rendered, "◓ Agent: Explore HA code structure") {
+	if !strings.Contains(rendered, "◓ Agent - Explore: HA code structure") {
 		t.Fatalf("RenderToolCalls() = %q, want a single visible gap before explicit agent label", rendered)
 	}
 }

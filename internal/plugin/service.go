@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 // Service is the public contract for the plugin module.

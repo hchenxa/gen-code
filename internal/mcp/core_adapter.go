@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 // mcpCoreTool wraps an MCP tool as a core.Tool for use with core.Agent.

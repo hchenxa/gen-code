@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 func (e *Engine) executeCommand(ctx context.Context, hookCmd setting.HookCmd, input HookInput) HookOutcome {

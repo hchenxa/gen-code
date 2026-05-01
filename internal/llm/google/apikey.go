@@ -1,7 +1,7 @@
 package google
 
 import (
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 // APIKeyMeta is the metadata for Google via API Key

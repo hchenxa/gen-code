@@ -1,6 +1,6 @@
 package tool
 
-import "github.com/yanmxa/gencode/internal/core"
+import "github.com/genai-io/gen-code/internal/core"
 
 // trackerToolSchemas defines the schemas for task management tools.
 var trackerToolSchemas = []core.ToolSchema{

@@ -1,4 +1,4 @@
-module github.com/yanmxa/gencode
+module github.com/genai-io/gen-code
 
 go 1.25.6
 

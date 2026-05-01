@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/task"
+	"github.com/genai-io/gen-code/internal/task"
 )
 
 func TestSendMessageTool_ResumesCompletedTask(t *testing.T) {
@@ -21,7 +21,7 @@ func TestSendMessageTool_ResumesCompletedTask(t *testing.T) {
 	task.Default().RegisterTask(agentTask)
 	defer task.Default().Remove("task-sendmessage-1")
 
-	executor := &stubContinueAgentExecutor{}
+	executor := &stubSendMessageExecutor{}
 	toolInst := NewSendMessageTool()
 	toolInst.SetExecutor(executor)
 
@@ -55,7 +55,7 @@ func TestSendMessageTool_RejectsRunningTask(t *testing.T) {
 	defer task.Default().Remove("task-sendmessage-2")
 
 	toolInst := NewSendMessageTool()
-	toolInst.SetExecutor(&stubContinueAgentExecutor{})
+	toolInst.SetExecutor(&stubSendMessageExecutor{})
 
 	result := toolInst.Execute(context.Background(), map[string]any{
 		"task_id": "task-sendmessage-2",
@@ -71,7 +71,7 @@ func TestSendMessageTool_RejectsRunningTask(t *testing.T) {
 }
 
 func TestSendMessageTool_BackgroundMessageByAgentID(t *testing.T) {
-	executor := &stubContinueAgentExecutor{}
+	executor := &stubSendMessageExecutor{}
 	toolInst := NewSendMessageTool()
 	toolInst.SetExecutor(executor)
 
@@ -102,7 +102,7 @@ func TestSendMessageTool_BackgroundMessageByAgentID(t *testing.T) {
 
 func TestSendMessageTool_RequiresAgentTypeForDirectAgentID(t *testing.T) {
 	toolInst := NewSendMessageTool()
-	toolInst.SetExecutor(&stubContinueAgentExecutor{})
+	toolInst.SetExecutor(&stubSendMessageExecutor{})
 
 	result := toolInst.Execute(context.Background(), map[string]any{
 		"agent_id": "agent-session-999",

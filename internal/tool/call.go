@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // PreparedToolCall is a parsed and validated tool call that can be reused

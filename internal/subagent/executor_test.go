@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/skill"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/skill"
 )
 
 type stubSubagentSessionStore struct {
@@ -44,11 +44,11 @@ func TestPrepareRunConfigRespectsOverrides(t *testing.T) {
 	executor := &Executor{parentModelID: "parent-model"}
 
 	rc, err := executor.prepareRunConfig(AgentRequest{
-		Agent:    "Explore",
+		Agent:    "general-purpose",
 		Name:     "Scout",
 		Model:    "override-model",
-		MaxTurns: 7,
-		Mode:     string(PermissionDontAsk),
+		MaxTurns: 120,
+		Mode:     string(PermissionEdit),
 	})
 	if err != nil {
 		t.Fatalf("prepareRunConfig() error: %v", err)
@@ -60,14 +60,30 @@ func TestPrepareRunConfigRespectsOverrides(t *testing.T) {
 	if rc.modelID != "override-model" {
 		t.Fatalf("expected model override, got %q", rc.modelID)
 	}
-	if rc.maxTurns != 7 {
+	if rc.maxTurns != 120 {
 		t.Fatalf("expected max turns override, got %d", rc.maxTurns)
 	}
-	if rc.permMode != PermissionDontAsk {
+	if rc.permMode != PermissionEdit {
 		t.Fatalf("expected permission mode override, got %q", rc.permMode)
 	}
-	if !strings.Contains(rc.agentPrompt, "## Mode: Autonomous") {
-		t.Fatalf("expected autonomous mode prompt, got %q", rc.agentPrompt)
+	if !strings.Contains(rc.agentPrompt, "## Mode: Edit") {
+		t.Fatalf("expected edit mode prompt, got %q", rc.agentPrompt)
+	}
+}
+
+func TestPrepareRunConfigDoesNotLowerBuiltinMaxTurns(t *testing.T) {
+	executor := &Executor{parentModelID: "parent-model"}
+
+	rc, err := executor.prepareRunConfig(AgentRequest{
+		Agent:    "general-purpose",
+		MaxTurns: 20,
+	})
+	if err != nil {
+		t.Fatalf("prepareRunConfig() error: %v", err)
+	}
+
+	if rc.maxTurns != defaultMaxTurns {
+		t.Fatalf("expected low max turns override to be raised to %d, got %d", defaultMaxTurns, rc.maxTurns)
 	}
 }
 
@@ -97,7 +113,7 @@ func TestShouldRetryWithParentModelOnlyForMissingDifferentModel(t *testing.T) {
 func TestBuildCancelledAgentResultUsesPreparedRunMetadata(t *testing.T) {
 	executor := &Executor{}
 	run := &preparedRun{
-		req: AgentRequest{Agent: "Explore"},
+		req: AgentRequest{Agent: "general-purpose"},
 		cfg: &runConfig{
 			displayName: "Scout",
 			modelID:     "test-model",
@@ -132,13 +148,24 @@ func TestBuildCancelledAgentResultUsesPreparedRunMetadata(t *testing.T) {
 
 func TestFormatToolProgressUsesReadableAgentLabel(t *testing.T) {
 	got := formatToolProgress("Agent", map[string]any{
-		"subagent_type": "Explore",
+		"subagent_type": "code-reviewer",
 		"description":   "HA code structure",
 		"prompt":        "Inspect the codebase",
 	})
 
-	if got != "Agent: Explore HA code structure" {
-		t.Fatalf("formatToolProgress() = %q, want %q", got, "Agent: Explore HA code structure")
+	if got != "Agent - code-reviewer: HA code structure" {
+		t.Fatalf("formatToolProgress() = %q, want %q", got, "Agent - code-reviewer: HA code structure")
+	}
+}
+
+func TestFormatToolProgressUsesShortGeneralName(t *testing.T) {
+	got := formatToolProgress("Agent", map[string]any{
+		"subagent_type": "general-purpose",
+		"description":   "update repo references",
+	})
+
+	if got != "Agent - General: update repo references" {
+		t.Fatalf("formatToolProgress() = %q, want %q", got, "Agent - General: update repo references")
 	}
 }
 
@@ -192,7 +219,7 @@ Use conventional commits.
 		Description:  "Reviews code changes.",
 		SystemPrompt: "Prefer minimal, surgical fixes.",
 		Skills:       []string{"git:commit"},
-	}, PermissionDontAsk)
+	}, PermissionDefault)
 
 	if !strings.Contains(prompt, "## Additional Instructions") {
 		t.Fatal("expected additional instructions section in prompt")
@@ -208,33 +235,40 @@ Use conventional commits.
 	}
 }
 
-func TestPlanAgentsExposeOnlyReadOnlyTools(t *testing.T) {
-	tests := []string{"Explore", "Plan"}
+func TestExploreModeFiltersMutatingToolSchemas(t *testing.T) {
+	schemas := []core.ToolSchema{
+		{Name: "Read"},
+		{Name: "Grep"},
+		{Name: "Write"},
+		{Name: "Bash"},
+		{Name: "WebSearch"},
+	}
 
-	for _, agentName := range tests {
-		t.Run(agentName, func(t *testing.T) {
-			cfg, ok := defaultRegistry.Get(agentName)
-			if !ok {
-				t.Fatalf("agent %q not found", agentName)
-			}
+	got := filterSchemasForPermission(schemas, PermissionExplore)
+	want := []core.ToolSchema{{Name: "Read"}, {Name: "Grep"}, {Name: "WebSearch"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("filtered schemas = %+v, want %+v", got, want)
+	}
+}
 
-			if cfg.PermissionMode != PermissionPlan {
-				t.Fatalf("expected %q to use plan permissions, got %q", agentName, cfg.PermissionMode)
-			}
-			if slices.Contains([]string(cfg.Tools), "Bash") {
-				t.Fatalf("plan-mode agent %q must not expose Bash", agentName)
-			}
+func TestEditModeFiltersApprovalOnlyToolSchemas(t *testing.T) {
+	schemas := []core.ToolSchema{
+		{Name: "Read"},
+		{Name: "Edit"},
+		{Name: "Write"},
+		{Name: "Bash"},
+		{Name: "Agent"},
+	}
 
-			want := []string{"Read", "Glob", "Grep", "WebFetch", "WebSearch"}
-			if !slices.Equal([]string(cfg.Tools), want) {
-				t.Fatalf("unexpected tool list for %q: got %v want %v", agentName, cfg.Tools, want)
-			}
-		})
+	got := filterSchemasForPermission(schemas, PermissionEdit)
+	want := []core.ToolSchema{{Name: "Read"}, {Name: "Edit"}, {Name: "Write"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("filtered schemas = %+v, want %+v", got, want)
 	}
 }
 
 func TestBuiltinAgentsDefaultTo100Turns(t *testing.T) {
-	for _, agentName := range []string{"Explore", "Plan", "general-purpose", "code-simplifier", "code-reviewer"} {
+	for _, agentName := range []string{"general-purpose", "code-simplifier", "code-reviewer"} {
 		t.Run(agentName, func(t *testing.T) {
 			cfg, ok := defaultRegistry.Get(agentName)
 			if !ok {
@@ -255,7 +289,7 @@ func TestPersistSubagentSessionUsesSessionStore(t *testing.T) {
 		parentSessionID: "parent-1",
 	}
 
-	sessionID, transcriptPath := executor.persistSubagentSession("Explore", "test-model", "Inspect code", []core.Message{
+	sessionID, transcriptPath := executor.persistSubagentSession("General", "test-model", "Inspect code", []core.Message{
 		{Role: core.RoleUser, Content: "hello"},
 	})
 

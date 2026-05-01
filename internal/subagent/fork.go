@@ -1,6 +1,6 @@
 package subagent
 
-import "github.com/yanmxa/gencode/internal/core"
+import "github.com/genai-io/gen-code/internal/core"
 
 // maxForkDepth is the maximum number of nested forks allowed.
 // This is separate from MaxAgentNestingDepth because forked agents carry

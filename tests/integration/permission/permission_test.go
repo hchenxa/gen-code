@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/tests/integration/testutil"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/tests/integration/testutil"
 )
 
 func TestPermission_PermitAll_AllowsWrite(t *testing.T) {

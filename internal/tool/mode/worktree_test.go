@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 func runGitToolTest(t *testing.T, dir string, args ...string) {

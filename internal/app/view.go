@@ -6,10 +6,10 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/conv"
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/app/conv"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
 var ghostTextStyle = lipgloss.NewStyle().Foreground(kit.CurrentTheme.TextDim)
@@ -210,6 +210,9 @@ func (m model) messageRenderParams() conv.MessageRenderParams {
 		BuildingTool:            m.conv.Stream.BuildingTool,
 		PendingCalls:            m.conv.Tool.PendingCalls,
 		CurrentIdx:              m.conv.Tool.CurrentIdx,
+		ModelName:               m.env.GetModelID(),
+		InputTokens:             m.env.InputTokens,
+		OutputTokens:            m.env.OutputTokens,
 		Width:                   m.env.Width,
 		MDRenderer:              m.conv.MDRenderer,
 		SpinnerView:             m.conv.Spinner.View(),

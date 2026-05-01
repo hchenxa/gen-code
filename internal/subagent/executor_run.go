@@ -2,11 +2,12 @@ package subagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/log"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/log"
 	"go.uber.org/zap"
 )
 
@@ -69,6 +70,9 @@ func (e *Executor) logRunStart(run *preparedRun) {
 func (e *Executor) executePreparedRun(ctx context.Context, run *preparedRun) (*core.Result, error) {
 	var onToolExec func(string, map[string]any)
 	if run.req.OnProgress != nil {
+		startMsg := fmt.Sprintf("Mode: %s · max %d turns", displayPermissionMode(run.cfg.permMode), run.cfg.maxTurns)
+		run.progress = append(run.progress, startMsg)
+		run.req.OnProgress(startMsg)
 		onToolExec = func(name string, params map[string]any) {
 			msg := formatToolProgress(name, params)
 			run.progress = append(run.progress, msg)
@@ -83,6 +87,11 @@ func (e *Executor) executePreparedRun(ctx context.Context, run *preparedRun) (*c
 
 	if err := e.loadConversation(ag, ctx, run.req); err != nil {
 		return nil, err
+	}
+	if run.req.OnProgress != nil {
+		msg := "Thinking..."
+		run.progress = append(run.progress, msg)
+		run.req.OnProgress(msg)
 	}
 
 	result, err := ag.ThinkAct(ctx)

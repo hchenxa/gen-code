@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // sideEffects stores HookResponse values keyed by tool call ID.
@@ -32,12 +32,19 @@ type InteractionFunc func(ctx context.Context, req *QuestionRequest) (*QuestionR
 type AdaptOption func(*adaptConfig)
 
 type adaptConfig struct {
-	askFn InteractionFunc
+	askFn          InteractionFunc
+	messagesGetter MessagesGetter
 }
 
 // WithInteraction sets the handler for interactive tools.
 func WithInteraction(fn InteractionFunc) AdaptOption {
 	return func(c *adaptConfig) { c.askFn = fn }
+}
+
+// WithMessagesGetterProvider provides the current parent conversation to tools that
+// need it, such as Agent when fork=true.
+func WithMessagesGetterProvider(fn MessagesGetter) AdaptOption {
+	return func(c *adaptConfig) { c.messagesGetter = fn }
 }
 
 // AdaptTool wraps a legacy Tool as a core.Tool with a dynamic CWD resolver.
@@ -63,7 +70,7 @@ func AdaptToolRegistry(schemas []core.ToolSchema, cwd func() string, opts ...Ada
 	var adapted []core.Tool
 	for name, schema := range schemaByName {
 		if t, ok := Get(name); ok {
-			adapted = append(adapted, &toolAdapter{inner: t, schema: schema, cwd: cwd, askFn: cfg.askFn})
+			adapted = append(adapted, &toolAdapter{inner: t, schema: schema, cwd: cwd, askFn: cfg.askFn, messagesGetter: cfg.messagesGetter})
 		}
 	}
 	return core.NewTools(adapted...)
@@ -71,10 +78,11 @@ func AdaptToolRegistry(schemas []core.ToolSchema, cwd func() string, opts ...Ada
 
 // toolAdapter wraps a legacy Tool as a core.Tool.
 type toolAdapter struct {
-	inner  Tool
-	schema core.ToolSchema
-	cwd    func() string
-	askFn  InteractionFunc
+	inner          Tool
+	schema         core.ToolSchema
+	cwd            func() string
+	askFn          InteractionFunc
+	messagesGetter MessagesGetter
 }
 
 func (a *toolAdapter) Name() string            { return a.inner.Name() }
@@ -85,6 +93,9 @@ func (a *toolAdapter) Execute(ctx context.Context, input map[string]any) (string
 	cwd := ""
 	if a.cwd != nil {
 		cwd = a.cwd()
+	}
+	if a.messagesGetter != nil {
+		ctx = WithMessagesGetter(ctx, a.messagesGetter)
 	}
 
 	var result toolresult.ToolResult

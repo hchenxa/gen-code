@@ -7,9 +7,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
 )
 
 // ApprovalModel manages the permission request UI with Claude Code style.
@@ -274,7 +274,7 @@ func (p *ApprovalModel) getTitle() string {
 		title = "Bash command"
 	case tool.ToolSkill:
 		title = "Load skill"
-	case tool.ToolAgent, tool.ToolContinueAgent, tool.ToolSendMessage:
+	case tool.ToolAgent, tool.ToolSendMessage:
 		title = "Spawn agent"
 	default:
 		title = p.request.Description
@@ -296,7 +296,7 @@ func (p *ApprovalModel) getAllSessionLabel() string {
 		return "Yes, allow all commands during this session"
 	case tool.ToolSkill:
 		return "Yes, allow all skills during this session"
-	case tool.ToolAgent, tool.ToolContinueAgent, tool.ToolSendMessage:
+	case tool.ToolAgent, tool.ToolSendMessage:
 		return "Yes, allow all agents during this session"
 	default:
 		return "Yes, allow all during this session"
@@ -435,16 +435,12 @@ func (p *approvalAgentPreview) render(width int) string {
 
 func approvalFormatPermissionMode(mode string) string {
 	switch mode {
-	case "plan":
-		return "Read-only (plan mode)"
+	case "explore":
+		return "Explore mode"
+	case "edit":
+		return "Edit mode"
 	case "default":
-		return "Standard permissions"
-	case "acceptEdits":
-		return "Auto-accept edits"
-	case "dontAsk", "bypassPermissions":
-		return "Autonomous (all permissions)"
-	case "auto":
-		return "Auto (determines best level)"
+		return "Default mode"
 	default:
 		return mode
 	}

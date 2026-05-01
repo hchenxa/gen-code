@@ -3,7 +3,7 @@
 // installable and shareable units. Compatible with Claude Code plugin format.
 package plugin
 
-import "github.com/yanmxa/gencode/internal/setting"
+import "github.com/genai-io/gen-code/internal/setting"
 
 // Scope represents where a plugin is installed.
 type Scope string

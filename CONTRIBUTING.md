@@ -5,8 +5,8 @@ Thanks for your interest in contributing! This guide will help you get started.
 ## Quick Start
 
 ```bash
-git clone https://github.com/yanmxa/gencode.git
-cd gencode
+git clone https://github.com/genai-io/gen-code.git
+cd gen-code
 go build -o gen ./cmd/gen
 ./gen
 ```

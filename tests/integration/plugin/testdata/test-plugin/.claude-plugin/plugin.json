@@ -6,8 +6,8 @@
     "name": "GenCode Test",
     "email": "test@gencode.dev"
   },
-  "homepage": "https://github.com/yanmxa/gencode",
-  "repository": "https://github.com/yanmxa/gencode",
+  "homepage": "https://github.com/genai-io/gen-code",
+  "repository": "https://github.com/genai-io/gen-code",
   "license": "MIT",
   "keywords": ["test", "comparison", "plugin"]
 }

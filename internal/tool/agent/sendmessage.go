@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/task"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/task"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // SendMessageTool sends a follow-up message to an existing worker.
-// Running workers do not yet support live injection, so messages are queued
-// and delivered on the next resume.
+// Running workers do not support live injection yet.
 type SendMessageTool struct {
 	executor tool.AgentExecutor
 }

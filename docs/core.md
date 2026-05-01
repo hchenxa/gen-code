@@ -152,7 +152,7 @@ Priority    Band             Source
   0-99      Identity         base template
 100-199     Environment      provider, cwd, git, model
 200-299     Instructions     user GEN.md, project GEN.md
-400-499     Capabilities     skills, agents, deferred tools
+400-499     Capabilities     skills, agents
 500-599     Guidelines       tool usage, git workflow
 600-699     Mode             plan mode
 700+        Extra            skill invocation, agent identity

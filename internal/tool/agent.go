@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 const (

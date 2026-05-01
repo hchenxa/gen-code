@@ -9,8 +9,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	coreplugin "github.com/yanmxa/gencode/internal/plugin"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	coreplugin "github.com/genai-io/gen-code/internal/plugin"
 )
 
 func TestCancelClearsTransientPluginSelectorState(t *testing.T) {

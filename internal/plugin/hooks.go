@@ -1,6 +1,6 @@
 package plugin
 
-import "github.com/yanmxa/gencode/internal/hook"
+import "github.com/genai-io/gen-code/internal/hook"
 
 func fireConfigChanged(source, filePath string) {
 	if h := hook.DefaultIfInit(); h != nil {

@@ -353,7 +353,7 @@ name: go-reviewer
 description: Reviews Go code for correctness and idioms
 tools: [Read, Glob, Grep, Bash]
 model: inherit
-permissionMode: plan
+permission-mode: explore
 maxTurns: 50
 ---
 
@@ -367,7 +367,7 @@ Source priority: Built-in → Project `.gen/agents/*.md` → User `~/.gen/agents
 | Tool | Purpose |
 |------|---------|
 | `Agent` | Spawn a subagent (foreground or background) |
-| `ContinueAgent` | Resume a completed agent from its saved session |
+| `SendMessage` | Send a follow-up message to a completed agent from its saved session |
 | `SendMessage` | Send a message to a running/completed agent |
 | `TaskOutput` | Read output from a background task |
 | `TaskStop` | Stop a running background task |

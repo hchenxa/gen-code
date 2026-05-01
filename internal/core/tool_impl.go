@@ -89,9 +89,6 @@ func (s *toolSet) Schemas() []ToolSchema {
 	return out
 }
 
-// TODO: Deferred tools — lazy-load rarely used tools (cron, worktree)
-//   via ToolSearch; track fetched state, only include in Schemas() when activated.
-
 // TODO: Filtering — support agent allow/disallow lists, disabled tools.
 //   Could be a Subset(filter FilterFunc) Tools method or a wrapper.
 

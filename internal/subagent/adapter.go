@@ -3,7 +3,7 @@ package subagent
 import (
 	"context"
 
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 // ExecutorAdapter adapts the Executor to implement tool.AgentExecutor

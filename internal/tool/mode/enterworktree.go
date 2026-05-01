@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
-	"github.com/yanmxa/gencode/internal/worktree"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/worktree"
 )
 
 // EnterWorktreeTool switches the main conversation into a git worktree

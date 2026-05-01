@@ -10,18 +10,18 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
-	"github.com/yanmxa/gencode/internal/app"
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/session"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/app"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/session"
+	"github.com/genai-io/gen-code/internal/setting"
 
 	// Import providers for registration
-	_ "github.com/yanmxa/gencode/internal/llm/alibaba"
-	_ "github.com/yanmxa/gencode/internal/llm/anthropic"
-	_ "github.com/yanmxa/gencode/internal/llm/google"
-	_ "github.com/yanmxa/gencode/internal/llm/minmax"
-	_ "github.com/yanmxa/gencode/internal/llm/moonshot"
-	_ "github.com/yanmxa/gencode/internal/llm/openai"
+	_ "github.com/genai-io/gen-code/internal/llm/alibaba"
+	_ "github.com/genai-io/gen-code/internal/llm/anthropic"
+	_ "github.com/genai-io/gen-code/internal/llm/google"
+	_ "github.com/genai-io/gen-code/internal/llm/minmax"
+	_ "github.com/genai-io/gen-code/internal/llm/moonshot"
+	_ "github.com/genai-io/gen-code/internal/llm/openai"
 )
 
 var version = "1.15.10"
@@ -186,7 +186,7 @@ Examples:
   gen -c                     Resume previous session
   gen version                Show version
 
-For more information, visit: https://github.com/yanmxa/gencode
+For more information, visit: https://github.com/genai-io/gen-code
 `
 	fmt.Println(help)
 }

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/skill"
-	"github.com/yanmxa/gencode/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/skill"
+	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
 // buildSystemPrompt builds agent-specific Extra content for the system prompt.
@@ -23,12 +23,12 @@ func (e *Executor) buildSystemPrompt(config *AgentConfig, permMode PermissionMod
 
 	// Mode-specific instructions
 	switch permMode {
-	case PermissionPlan:
-		sb.WriteString("## Mode: Read-Only\n")
-		sb.WriteString("You are in read-only mode. You can only use tools that read information (Read, Glob, Grep, WebFetch, WebSearch). Do not attempt to modify any files.\n\n")
-	case PermissionDontAsk, PermissionBypassPermissions:
-		sb.WriteString("## Mode: Autonomous\n")
-		sb.WriteString("You have full autonomy to complete your task. You can read and modify files, execute commands, and make changes as needed.\n\n")
+	case PermissionExplore:
+		sb.WriteString("## Mode: Explore\n")
+		sb.WriteString("You are in explore mode. You can use non-mutating research tools such as Read, Glob, Grep, WebFetch, and WebSearch. Do not modify files, execute shell commands, or change the workspace.\n\n")
+	case PermissionEdit:
+		sb.WriteString("## Mode: Edit\n")
+		sb.WriteString("You are in edit mode. You can read and edit files using tools such as Read, Glob, Grep, Edit, and Write. Do not execute shell commands, spawn agents, or use tools that require separate approval.\n\n")
 	}
 
 	// Custom system prompt from config (lazily loaded from AGENT.md body)
@@ -157,15 +157,34 @@ func formatAgentProgress(params map[string]any) string {
 		}
 		return fmt.Sprintf("Agent: %s", desc)
 	}
+	agentType = displayAgentName(agentType)
 	if desc == "" {
-		return fmt.Sprintf("Agent: %s", agentType)
+		return fmt.Sprintf("Agent - %s", agentType)
 	}
-	return fmt.Sprintf("Agent: %s %s", agentType, desc)
+	return fmt.Sprintf("Agent - %s: %s", agentType, desc)
 }
 
 func displayNameFor(config *AgentConfig, req AgentRequest) string {
 	if req.Name != "" {
 		return req.Name
 	}
-	return config.Name
+	return displayAgentName(config.Name)
+}
+
+func displayAgentName(name string) string {
+	if strings.EqualFold(name, "general-purpose") {
+		return "General"
+	}
+	return name
+}
+
+func displayPermissionMode(mode PermissionMode) string {
+	switch mode {
+	case PermissionExplore:
+		return "Explore"
+	case PermissionEdit:
+		return "Edit"
+	default:
+		return "Default"
+	}
 }

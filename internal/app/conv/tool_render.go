@@ -9,9 +9,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yanmxa/gencode/internal/app/kit"
-	"github.com/yanmxa/gencode/internal/tool"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/app/kit"
+	"github.com/genai-io/gen-code/internal/tool"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 var (
@@ -108,7 +108,7 @@ func RenderToolResultInline(data ToolResultData, mdRenderer *MDRenderer) string 
 	switch toolName {
 	case tool.ToolSkill:
 		return renderSkillResultInline(data)
-	case tool.ToolAgent, tool.ToolContinueAgent, tool.ToolSendMessage:
+	case tool.ToolAgent, tool.ToolSendMessage:
 		return renderTaskResultInline(data, mdRenderer)
 	case tool.ToolTaskOutput:
 		return renderTaskOutputResultInline(data)
@@ -697,12 +697,9 @@ func formatAgentLabel(input string) string {
 
 	desc := ""
 	if d, ok := params["description"].(string); ok {
-		desc = d
+		desc = conciseAgentDescription(d)
 	} else if p, ok := params["prompt"].(string); ok {
-		desc = p
-		if len(desc) > 40 {
-			desc = desc[:40] + "..."
-		}
+		desc = conciseAgentDescription(p)
 	}
 
 	if agentType == "" {
@@ -711,10 +708,29 @@ func formatAgentLabel(input string) string {
 		}
 		return "Agent"
 	}
+	agentType = displayAgentType(agentType)
 	if desc != "" {
-		return fmt.Sprintf("Agent: %s %s", agentType, desc)
+		return fmt.Sprintf("Agent - %s: %s", agentType, desc)
 	}
-	return fmt.Sprintf("Agent: %s", agentType)
+	return fmt.Sprintf("Agent - %s", agentType)
+}
+
+func conciseAgentDescription(desc string) string {
+	words := strings.Fields(desc)
+	if len(words) > 10 {
+		return strings.Join(words[:10], " ") + "..."
+	}
+	if len(desc) > 60 {
+		return desc[:57] + "..."
+	}
+	return desc
+}
+
+func displayAgentType(agentType string) string {
+	if strings.EqualFold(agentType, "general-purpose") {
+		return "General"
+	}
+	return agentType
 }
 
 func extractTaskGetDisplay(input string, ownerMap map[string]string) string {

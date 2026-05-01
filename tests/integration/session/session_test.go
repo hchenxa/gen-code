@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	session "github.com/yanmxa/gencode/internal/session"
+	session "github.com/genai-io/gen-code/internal/session"
 )
 
 // newTestStore creates a Store using a temp directory instead of ~/.gen/projects/.

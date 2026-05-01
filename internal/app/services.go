@@ -1,20 +1,20 @@
 package app
 
 import (
-	"github.com/yanmxa/gencode/internal/agent"
-	"github.com/yanmxa/gencode/internal/command"
-	"github.com/yanmxa/gencode/internal/cron"
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
-	"github.com/yanmxa/gencode/internal/mcp"
-	"github.com/yanmxa/gencode/internal/plugin"
-	"github.com/yanmxa/gencode/internal/session"
-	"github.com/yanmxa/gencode/internal/setting"
-	"github.com/yanmxa/gencode/internal/skill"
-	"github.com/yanmxa/gencode/internal/subagent"
-	"github.com/yanmxa/gencode/internal/task"
-	"github.com/yanmxa/gencode/internal/task/tracker"
-	"github.com/yanmxa/gencode/internal/tool"
+	"github.com/genai-io/gen-code/internal/agent"
+	"github.com/genai-io/gen-code/internal/command"
+	"github.com/genai-io/gen-code/internal/cron"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
+	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/plugin"
+	"github.com/genai-io/gen-code/internal/session"
+	"github.com/genai-io/gen-code/internal/setting"
+	"github.com/genai-io/gen-code/internal/skill"
+	"github.com/genai-io/gen-code/internal/subagent"
+	"github.com/genai-io/gen-code/internal/task"
+	"github.com/genai-io/gen-code/internal/task/tracker"
+	"github.com/genai-io/gen-code/internal/tool"
 )
 
 // services holds references to domain service singletons, injected into

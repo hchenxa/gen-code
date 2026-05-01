@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/genai-io/gen-code/internal/plugin"
 	"github.com/spf13/cobra"
-	"github.com/yanmxa/gencode/internal/plugin"
 )
 
 var pluginCmd = &cobra.Command{

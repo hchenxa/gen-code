@@ -95,7 +95,6 @@ var safeTools = func() map[string]bool {
 		"TaskUpdate":      true,
 		"AskUserQuestion": true,
 		"CronList":        true,
-		"ToolSearch":      true,
 	}
 	for name := range readOnlyTools {
 		m[name] = true

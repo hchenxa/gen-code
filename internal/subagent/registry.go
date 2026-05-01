@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/hook"
-	"github.com/yanmxa/gencode/internal/llm"
+	"github.com/genai-io/gen-code/internal/hook"
+	"github.com/genai-io/gen-code/internal/llm"
 )
 
 // Registry manages agent type definitions
@@ -71,40 +71,12 @@ func (r *Registry) ListConfigs() []*AgentConfig {
 
 // registerBuiltins registers the built-in agent types
 func (r *Registry) registerBuiltins() {
-	// Explore agent - fast codebase exploration (read-only)
-	r.agents["explore"] = &AgentConfig{
-		Name:        "Explore",
-		Description: "Fast agent specialized for exploring codebases.",
-		WhenToUse: `Use this when you need to quickly find files by patterns (e.g. "src/**/*.tsx"), search code for keywords (e.g. "API endpoints"), or answer questions about the codebase (e.g. "how do API endpoints work?").
-When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.
-NOT for questions answerable with a single direct tool call (one Bash command, one Grep, one Read) — use those tools directly instead.`,
-		Model:          "inherit",
-		PermissionMode: PermissionPlan,
-		Tools:          ToolList{"Read", "Glob", "Grep", "WebFetch", "WebSearch"},
-		MaxTurns:       100,
-		Source:         "built-in",
-	}
-
-	// Plan agent - software architect for designing implementation plans
-	r.agents["plan"] = &AgentConfig{
-		Name:        "Plan",
-		Description: "Software architect agent for designing implementation plans.",
-		WhenToUse: `Use this when you need to plan the implementation strategy for a task.
-Returns step-by-step plans, identifies critical files, and considers architectural trade-offs.
-For broader codebase exploration and deep research, use the Explore agent instead.`,
-		Model:          "inherit",
-		PermissionMode: PermissionPlan,
-		Tools:          ToolList{"Read", "Glob", "Grep", "WebFetch", "WebSearch"},
-		MaxTurns:       100,
-		Source:         "built-in",
-	}
-
 	// General-purpose agent - all tools (including nested Agent)
 	r.agents["general-purpose"] = &AgentConfig{
 		Name:        "general-purpose",
 		Description: "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks.",
-		WhenToUse: `Use this when you are searching for a keyword or file and are not confident that you will find the right match in the first few tries, or when the task requires multiple tools and write access.
-When other agent types are too restrictive for the task at hand, use this agent.`,
+		WhenToUse: `Use this when the task needs multiple searches, cross-file reasoning, implementation work, or another multi-step workflow.
+For non-mutating investigation, run this agent with mode=explore. For implementation work, run it with mode=edit or the default mode.`,
 		Model:          "inherit",
 		PermissionMode: PermissionDefault,
 		Tools:          nil, // nil = all tools
@@ -120,16 +92,16 @@ When other agent types are too restrictive for the task at hand, use this agent.
 Focuses on recently modified code unless instructed otherwise.
 Good for reducing complexity, removing duplication, improving naming, and tightening logic.`,
 		Model:          "inherit",
-		PermissionMode: PermissionAcceptEdits,
+		PermissionMode: PermissionEdit,
 		Tools:          nil, // all tools
-		DisallowedTools: ToolList{"Agent", "ContinueAgent", "SendMessage",
+		DisallowedTools: ToolList{"Agent", "SendMessage",
 			"EnterWorktree", "ExitWorktree",
 			"CronCreate", "CronDelete", "CronList"},
 		MaxTurns: 100,
 		Source:   "built-in",
 	}
 
-	// code-reviewer agent - reviews code for quality issues (read-only)
+	// code-reviewer agent - reviews code for quality issues without mutating the workspace
 	r.agents["code-reviewer"] = &AgentConfig{
 		Name:        "code-reviewer",
 		Description: "Reviews code changes for bugs, security issues, performance problems, and style violations.",
@@ -137,8 +109,8 @@ Good for reducing complexity, removing duplication, improving naming, and tighte
 Good for catching issues you might have missed — security vulnerabilities, edge cases, naming problems, or logic errors.
 Returns a structured review with findings and recommendations.`,
 		Model:          "inherit",
-		PermissionMode: PermissionPlan,
-		Tools:          ToolList{"Read", "Glob", "Grep", "Bash", "WebFetch", "WebSearch"},
+		PermissionMode: PermissionExplore,
+		Tools:          ToolList{"Read", "Glob", "Grep", "WebFetch", "WebSearch"},
 		MaxTurns:       100,
 		Source:         "built-in",
 	}

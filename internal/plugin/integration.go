@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 // GetPluginSkillPaths returns all skill directory paths from enabled plugins.

@@ -3,8 +3,8 @@ package tool
 import (
 	"context"
 
-	"github.com/yanmxa/gencode/internal/tool/perm"
-	"github.com/yanmxa/gencode/internal/tool/toolresult"
+	"github.com/genai-io/gen-code/internal/tool/perm"
+	"github.com/genai-io/gen-code/internal/tool/toolresult"
 )
 
 // Tool represents a read-only tool that can be executed

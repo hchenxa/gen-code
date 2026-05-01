@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/secret"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/secret"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 // Preferred returns the preferred search provider from settings, or the default.

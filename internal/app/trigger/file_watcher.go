@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/hook"
+	"github.com/genai-io/gen-code/internal/hook"
 )
 
 const DefaultFileWatcherInterval = 500 * time.Millisecond

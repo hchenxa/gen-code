@@ -1,6 +1,6 @@
 package worktree
 
-import "github.com/yanmxa/gencode/internal/hook"
+import "github.com/genai-io/gen-code/internal/hook"
 
 func fireWorktreeCreated(name, path string) {
 	if h := hook.DefaultIfInit(); h != nil {

@@ -14,11 +14,11 @@ import (
 
 	"google.golang.org/genai"
 
-	"github.com/yanmxa/gencode/internal/core"
-	"github.com/yanmxa/gencode/internal/llm"
-	streamutil "github.com/yanmxa/gencode/internal/llm/stream"
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/secret"
+	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/llm"
+	streamutil "github.com/genai-io/gen-code/internal/llm/stream"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/secret"
 )
 
 // Client implements the Provider interface using the Google GenAI SDK

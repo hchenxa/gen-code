@@ -3,7 +3,7 @@ package agent
 import (
 	"sync"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 // Service manages the main agent session lifecycle.

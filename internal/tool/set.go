@@ -3,7 +3,7 @@ package tool
 import (
 	"strings"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 // parentOnlyTools are tools that only the parent conversation can use.
@@ -47,17 +47,13 @@ func (s *Set) Tools() []core.ToolSchema {
 	return s.defaultTools()
 }
 
-// defaultTools returns the full tool set filtered by disabled/deferred mode.
+// defaultTools returns the full tool set filtered by disabled tools.
 func (s *Set) defaultTools() []core.ToolSchema {
 	tools := GetToolSchemasWithMCP(s.MCP)
 
 	filtered := make([]core.ToolSchema, 0, len(tools))
 	for _, t := range tools {
 		if s.Disabled[t.Name] {
-			continue
-		}
-		// Skip deferred tools unless they've been fetched via ToolSearch
-		if IsDeferred(t.Name) && !IsFetched(t.Name) {
 			continue
 		}
 		filtered = append(filtered, t)

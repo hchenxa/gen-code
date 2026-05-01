@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yanmxa/gencode/internal/task"
+	"github.com/genai-io/gen-code/internal/task"
 )
 
 func TestTaskOutputTool_StillRunning(t *testing.T) {
@@ -98,8 +98,8 @@ func TestTaskOutputTool_Completed(t *testing.T) {
 		t.Errorf("Expected output file path in output, got: %s", result.Output)
 	}
 
-	if !strings.Contains(result.Output, "ContinueAgent(task_id=\"test-agent-456\"") {
-		t.Errorf("Expected ContinueAgent suggestion in output, got: %s", result.Output)
+	if !strings.Contains(result.Output, "SendMessage(task_id=\"test-agent-456\"") {
+		t.Errorf("Expected SendMessage suggestion in output, got: %s", result.Output)
 	}
 }
 

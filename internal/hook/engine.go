@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/yanmxa/gencode/internal/log"
-	"github.com/yanmxa/gencode/internal/setting"
+	"github.com/genai-io/gen-code/internal/log"
+	"github.com/genai-io/gen-code/internal/setting"
 )
 
 // LLMCompleter performs a single-turn LLM completion for hook execution.

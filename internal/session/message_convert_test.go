@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"github.com/yanmxa/gencode/internal/core"
+	"github.com/genai-io/gen-code/internal/core"
 )
 
 func Test_messagesToEntries_roundtrip(t *testing.T) {
