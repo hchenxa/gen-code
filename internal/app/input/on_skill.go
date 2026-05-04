@@ -62,13 +62,13 @@ type SkillState struct {
 	Selector            SkillSelector
 	PendingInstructions string
 	PendingArgs         string
-	ActiveInvocation    string
 }
 
-// ConsumeInvocation extracts the pending skill invocation, activating any
-// pending instructions and clearing pending state.
-// Returns (displayMsg, fullMsg): displayMsg is shown in chat UI,
-// fullMsg includes skill instructions and is sent to the LLM.
+// ConsumeInvocation extracts the pending skill invocation and clears pending
+// state. Returns (displayMsg, fullMsg): displayMsg is shown in chat UI,
+// fullMsg embeds the skill instructions and is sent to the LLM as the user
+// message — the conversation history is the single source of truth for the
+// skill body, so the LLM (and any session resume) can refer back to it.
 func (s *SkillState) ConsumeInvocation() (displayMsg, fullMsg string) {
 	displayMsg = s.PendingArgs
 	if displayMsg == "" {
@@ -76,7 +76,6 @@ func (s *SkillState) ConsumeInvocation() (displayMsg, fullMsg string) {
 	}
 	fullMsg = displayMsg
 	if s.PendingInstructions != "" {
-		s.ActiveInvocation = s.PendingInstructions
 		fullMsg = s.PendingInstructions + "\n\n" + displayMsg
 		s.PendingInstructions = ""
 	}

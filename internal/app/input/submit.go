@@ -93,7 +93,6 @@ func ExecuteSubmitRequest(deps SubmitDeps, req SubmitRequest) tea.Cmd {
 		return cmd
 	}
 
-	deps.Input.Skill.ActiveInvocation = ""
 	if deps.ClearPluginRoot != nil {
 		deps.ClearPluginRoot()
 	}

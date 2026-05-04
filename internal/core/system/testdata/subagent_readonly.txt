@@ -66,14 +66,6 @@ NEVER do these without explicit user request:
 When staging, add files by name — avoid `git add -A` or `git add .` (risk of committing secrets or binaries).
 </guidelines>
 
-<memory scope="user">
-Short variable names.
-</memory>
-
-<memory scope="project">
-Go project.
-</memory>
-
 <environment>
 date: YYYY-MM-DD
 cwd: /home/user/myproject

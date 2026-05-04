@@ -107,18 +107,6 @@ Skip it for: clear tasks, when reasonable defaults exist, when answerable from c
 Format: 1-8 questions, 2-8 options each, concise descriptions.
 </guidelines>
 
-<memory scope="user">
-Always use tabs.
-</memory>
-
-<memory scope="project">
-Go project.
-</memory>
-
-<skills>
-- review: Review a pull request
-</skills>
-
 <environment>
 date: YYYY-MM-DD
 cwd: /home/user/myproject

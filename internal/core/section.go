@@ -10,15 +10,11 @@ package core
 type Slot uint8
 
 const (
-	SlotIdentity     Slot = iota // who-you-are charter (replaceable for subagent / custom persona)
-	SlotProvider                 // provider-specific quirks
-	SlotPolicy                   // safety contract — never overridden
-	SlotGuidelines               // tool usage, git, tasks, questions (filtered by Role)
-	SlotMemory                   // GEN.md / CLAUDE.md (user + project)
-	SlotCapabilities             // skills, agents directories
-	SlotInvocation               // active /skill or /command body
-	SlotEnvironment              // cwd, git, date — VOLATILE, near end
-	SlotNotice                   // hook-injected reminders — VOLATILE, end
+	SlotIdentity    Slot = iota // who-you-are charter (replaceable for subagent / custom persona)
+	SlotProvider                // provider-specific quirks
+	SlotPolicy                  // safety contract — never overridden
+	SlotGuidelines              // tool usage, git, tasks, questions (filtered by Role)
+	SlotEnvironment             // cwd, git, date — VOLATILE, only changes at day rollover
 )
 
 // Source labels where a section originated, for debugging and provenance.
@@ -53,7 +49,7 @@ const (
 // cached per section; Refresh forces re-evaluation on the next Prompt() call.
 type Section struct {
 	Slot   Slot
-	Name   string        // stable id, e.g. "memory-user", "invocation-skill"
+	Name   string        // stable id, e.g. "memory-user", "capabilities-skills"
 	Source Source        // origin tag, debugging only
 	Render func() string // pure renderer; "" means skip
 }

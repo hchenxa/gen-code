@@ -9,6 +9,7 @@ import (
 	"github.com/genai-io/gen-code/internal/llm"
 	"github.com/genai-io/gen-code/internal/mcp"
 	"github.com/genai-io/gen-code/internal/plugin"
+	"github.com/genai-io/gen-code/internal/reminder"
 	"github.com/genai-io/gen-code/internal/session"
 	"github.com/genai-io/gen-code/internal/setting"
 	"github.com/genai-io/gen-code/internal/skill"
@@ -37,6 +38,7 @@ type services struct {
 	Plugin   plugin.Service
 	Agent    agent.Service
 	Identity *identity.Registry
+	Reminder *reminder.Service
 }
 
 func newServices() services {
@@ -56,6 +58,7 @@ func newServices() services {
 		Plugin:   plugin.Default(),
 		Agent:    agent.Default(),
 		Identity: identity.Default(),
+		Reminder: reminder.NewService(),
 	}
 }
 

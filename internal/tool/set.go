@@ -17,13 +17,14 @@ var parentOnlyTools = map[string]bool{
 // If Static is non-nil, it is returned directly (for custom agents).
 // Otherwise, tools are resolved dynamically using the config fields.
 type Set struct {
-	Static      []core.ToolSchema        // fixed tool list (overrides dynamic)
-	Disabled    map[string]bool          // excluded tools
-	MCP         func() []core.ToolSchema // MCP tools getter
-	Allow       []string                 // agent allow list (nil = all tools, non-nil = only these)
-	Disallow    []string                 // agent deny list (excluded after allow filtering)
-	IsAgent     bool                     // true for subagent tool sets (excludes parent-only tools)
-	disallowSet map[string]bool          // eagerly-initialized normalized lookup cache for Disallow
+	Static         []core.ToolSchema        // fixed tool list (overrides dynamic)
+	Disabled       map[string]bool          // excluded tools
+	MCP            func() []core.ToolSchema // MCP tools getter
+	AgentDirectory func() string            // available-agents listing for the Agent tool description
+	Allow          []string                 // agent allow list (nil = all tools, non-nil = only these)
+	Disallow       []string                 // agent deny list (excluded after allow filtering)
+	IsAgent        bool                     // true for subagent tool sets (excludes parent-only tools)
+	disallowSet    map[string]bool          // eagerly-initialized normalized lookup cache for Disallow
 }
 
 // Tools returns the resolved tool set for a turn.
@@ -49,7 +50,10 @@ func (s *Set) Tools() []core.ToolSchema {
 
 // defaultTools returns the full tool set filtered by disabled tools.
 func (s *Set) defaultTools() []core.ToolSchema {
-	tools := GetToolSchemasWithMCP(s.MCP)
+	tools := GetToolSchemasWith(SchemaOptions{
+		MCPTools:       s.MCP,
+		AgentDirectory: s.AgentDirectory,
+	})
 
 	filtered := make([]core.ToolSchema, 0, len(tools))
 	for _, t := range tools {
@@ -64,7 +68,10 @@ func (s *Set) defaultTools() []core.ToolSchema {
 // agentAllTools returns all tools except parent-only and disallowed tools.
 // Used for agents with nil Allow (= all tools).
 func (s *Set) agentAllTools() []core.ToolSchema {
-	allTools := GetToolSchemasWithMCP(s.MCP)
+	allTools := GetToolSchemasWith(SchemaOptions{
+		MCPTools:       s.MCP,
+		AgentDirectory: s.AgentDirectory,
+	})
 	filtered := make([]core.ToolSchema, 0, len(allTools))
 	for _, t := range allTools {
 		if !parentOnlyTools[t.Name] && !s.isDisallowed(t.Name) {

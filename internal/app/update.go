@@ -78,7 +78,28 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case input.PromptSuggestionMsg:
 		input.HandlePromptSuggestion(&m.userInput, m.conv.Stream.Active, m.userInput.Textarea.Value(), msg)
 		return m, nil
-	case kit.DismissedMsg, input.ToolToggleMsg, input.SkillCycleMsg, input.AgentToggleMsg:
+	case kit.DismissedMsg, input.ToolToggleMsg:
+		return m, nil
+	case input.SkillCycleMsg:
+		// Why re-emit on toggle: the skills directory rides in
+		// <system-reminder>, which is only refreshed at SessionStart and
+		// PostCompact. Without this nudge the LLM sees stale state until
+		// one of those fires.
+		if m.services.Reminder != nil {
+			m.services.Reminder.EnqueueAllProviders()
+		}
+		return m, nil
+	case input.AgentToggleMsg:
+		// Why stop on toggle: the agents directory lives in the Agent tool's
+		// description, which is frozen at agent build time. Stopping forces
+		// ensureAgentSession to rebuild on the next user turn with the new
+		// directory. Why guard on Stream.Active: stopping mid-stream would
+		// orphan in-flight tool calls and the partial assistant turn —
+		// leave the toggle pending; ensureAgentSession will see the updated
+		// store the next time it actually rebuilds.
+		if m.services.Agent != nil && m.services.Agent.Active() && !m.conv.Stream.Active {
+			m.services.Agent.Stop()
+		}
 		return m, nil
 	case persistSessionDoneMsg:
 		if msg.err != nil {

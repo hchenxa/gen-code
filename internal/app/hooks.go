@@ -60,6 +60,12 @@ func (m *model) executeStartupHooks(ctx context.Context) hook.HookOutcome {
 	if m.services.Session.ID() != "" {
 		source = "resume"
 	}
+	// Enqueue session-level reminders (skills directory, memory, etc.) so
+	// they ride on the first user message of this session. The system-prompt
+	// cache prefix stays untouched.
+	if m.services.Reminder != nil {
+		m.services.Reminder.EnqueueAllProviders()
+	}
 	return m.services.Hook.Execute(ctx, hook.SessionStart, hook.HookInput{
 		Source: source,
 		Model:  m.env.GetModelID(),
@@ -110,6 +116,12 @@ func (m *model) checkPromptHook(ctx context.Context, prompt string) (bool, strin
 		return false, ""
 	}
 	outcome := m.services.Hook.Execute(ctx, hook.UserPromptSubmit, hook.HookInput{Prompt: prompt})
+	// UserPromptSubmit hooks may return additionalContext to inject into the
+	// next turn. Enqueue as a <system-reminder> so it rides on the user
+	// message that's about to go out (which is the same prompt being checked).
+	if outcome.AdditionalContext != "" && m.services.Reminder != nil {
+		m.services.Reminder.Enqueue(outcome.AdditionalContext)
+	}
 	return outcome.ShouldBlock, outcome.BlockReason
 }
 

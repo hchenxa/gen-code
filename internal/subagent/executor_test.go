@@ -274,24 +274,31 @@ func TestCapabilityPromptsFollowReachableTools(t *testing.T) {
 		agentsPrompt: "- code-reviewer: Review code",
 	}
 
-	skills, agents := executor.capabilityPrompts(&AgentConfig{AllowTools: nil})
-	if skills == "" || agents == "" {
-		t.Fatalf("nil AllowTools should expose all capability prompts, got skills=%q agents=%q", skills, agents)
+	directoryBody := func(getter func() string) string {
+		if getter == nil {
+			return ""
+		}
+		return getter()
 	}
 
-	skills, agents = executor.capabilityPrompts(&AgentConfig{AllowTools: ToolNames("Read", "Skill")})
-	if skills == "" || agents != "" {
-		t.Fatalf("Skill-only agent should expose skills but not agents, got skills=%q agents=%q", skills, agents)
+	skills, agentDir := executor.capabilityPrompts(&AgentConfig{AllowTools: nil})
+	if skills == "" || directoryBody(agentDir) == "" {
+		t.Fatalf("nil AllowTools should expose all capability prompts, got skills=%q agents=%q", skills, directoryBody(agentDir))
 	}
 
-	skills, agents = executor.capabilityPrompts(&AgentConfig{AllowTools: ToolNames("Read", "Agent")})
-	if skills != "" || agents == "" {
-		t.Fatalf("Agent-capable agent should expose agents but not skills, got skills=%q agents=%q", skills, agents)
+	skills, agentDir = executor.capabilityPrompts(&AgentConfig{AllowTools: ToolNames("Read", "Skill")})
+	if skills == "" || directoryBody(agentDir) != "" {
+		t.Fatalf("Skill-only agent should expose skills but not agents, got skills=%q agents=%q", skills, directoryBody(agentDir))
 	}
 
-	skills, agents = executor.capabilityPrompts(&AgentConfig{AllowTools: ToolNames("Read")})
-	if skills != "" || agents != "" {
-		t.Fatalf("read-only agent should not expose capability prompts, got skills=%q agents=%q", skills, agents)
+	skills, agentDir = executor.capabilityPrompts(&AgentConfig{AllowTools: ToolNames("Read", "Agent")})
+	if skills != "" || directoryBody(agentDir) == "" {
+		t.Fatalf("Agent-capable agent should expose agents but not skills, got skills=%q agents=%q", skills, directoryBody(agentDir))
+	}
+
+	skills, agentDir = executor.capabilityPrompts(&AgentConfig{AllowTools: ToolNames("Read")})
+	if skills != "" || directoryBody(agentDir) != "" {
+		t.Fatalf("read-only agent should not expose capability prompts, got skills=%q agents=%q", skills, directoryBody(agentDir))
 	}
 }
 

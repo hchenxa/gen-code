@@ -31,23 +31,42 @@ func IsAgentToolName(name string) bool {
 	return name == ToolAgent || name == ToolSendMessage
 }
 
-// GetToolSchemas returns core.ToolSchema definitions for all registered tools
-func GetToolSchemas() []core.ToolSchema {
-	return GetToolSchemasWithMCP(nil)
+// SchemaOptions configures dynamic content embedded in tool schemas.
+//
+// Both fields are getters (called at schema build time) so tool descriptions
+// stay in sync with whatever the harness has loaded most recently. Either may
+// be nil — a nil MCPTools yields no MCP tools, and a nil AgentDirectory yields
+// an Agent tool whose description omits the available-types listing (useful
+// for subagent contexts where recursive spawning is discouraged).
+type SchemaOptions struct {
+	MCPTools       func() []core.ToolSchema
+	AgentDirectory func() string
 }
 
-// GetToolSchemasWithMCP returns tool schemas including MCP tools if a getter is provided
-func GetToolSchemasWithMCP(mcpToolsGetter func() []core.ToolSchema) []core.ToolSchema {
+// GetToolSchemas returns core.ToolSchema definitions for all registered tools
+// with no dynamic content (no MCP tools, no agent directory). For
+// directory-aware schemas use GetToolSchemasWith.
+func GetToolSchemas() []core.ToolSchema {
+	return GetToolSchemasWith(SchemaOptions{})
+}
+
+// GetToolSchemasWith returns tool schemas with dynamic content from opts.
+func GetToolSchemasWith(opts SchemaOptions) []core.ToolSchema {
+	var directory string
+	if opts.AgentDirectory != nil {
+		directory = opts.AgentDirectory()
+	}
+
 	tools := make([]core.ToolSchema, 0, 20)
 	tools = append(tools, baseToolSchemas()...)
 	tools = append(tools, skillToolSchema)
-	tools = append(tools, agentToolSchema, sendMessageToolSchema)
+	tools = append(tools, agentToolSchema(directory), sendMessageToolSchema)
 	tools = append(tools, trackerToolSchemas...)
 	tools = append(tools, cronToolSchemas...)
 	tools = append(tools, worktreeToolSchemas...)
 
-	if mcpToolsGetter != nil {
-		tools = append(tools, mcpToolsGetter()...)
+	if opts.MCPTools != nil {
+		tools = append(tools, opts.MCPTools()...)
 	}
 
 	return tools

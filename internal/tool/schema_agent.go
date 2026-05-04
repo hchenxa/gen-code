@@ -1,89 +1,105 @@
 package tool
 
-import "github.com/genai-io/gen-code/internal/core"
+import (
+	"strings"
 
-// agentToolSchema is the schema for the Agent tool.
-var agentToolSchema = core.ToolSchema{
-	Name: "Agent",
-	Description: `Launch a subagent for complex work that benefits from separate context or parallel execution.
+	"github.com/genai-io/gen-code/internal/core"
+)
 
-Check <agents> for available agent types and their when-to-use guidance. Use agent name as subagent_type. If omitted, the general-purpose agent is used.
+// agentToolSchema returns the Agent tool schema with the given directory body
+// embedded directly in the description. The directory is rendered before the
+// usage notes so the LLM sees the available agent types right after the
+// opening line. An empty directory yields a directory-less description that
+// still mentions subagent_type — useful for subagent contexts where the
+// directory is intentionally omitted to discourage recursive spawning.
+func agentToolSchema(directory string) core.ToolSchema {
+	directory = strings.TrimSpace(directory)
 
-Use direct tools instead for simple reads, narrow searches, or tasks that only need 1-2 tool calls.
+	var sb strings.Builder
+	sb.WriteString("Launch a subagent for complex work that benefits from separate context or parallel execution.\n\n")
+	if directory != "" {
+		sb.WriteString(directory)
+		sb.WriteString("\n\n")
+	}
+	sb.WriteString("When using the Agent tool, specify a subagent_type parameter to select which agent type to use. If omitted, the general-purpose agent is used.\n\n")
+	sb.WriteString("Use direct tools instead for simple reads, narrow searches, or tasks that only need 1-2 tool calls.\n\n")
+	sb.WriteString("Usage notes:\n")
+	sb.WriteString("- Always include a short description (3-5 words) summarizing what the agent will do\n")
+	sb.WriteString("- Launch multiple agents concurrently whenever possible; to do that, use a single message with multiple Agent calls\n")
+	sb.WriteString("- Each agent has isolated context; summarize important results back to the user yourself\n")
+	sb.WriteString("- Use foreground by default when you need the result before continuing\n")
+	sb.WriteString("- Use run_in_background only for genuinely independent work; you will be notified when it completes\n")
+	sb.WriteString("- Provide concrete prompts with file paths, constraints, and whether code changes are expected")
 
-Usage notes:
-- Always include a short description (3-5 words) summarizing what the agent will do
-- Launch multiple agents concurrently whenever possible; to do that, use a single message with multiple Agent calls
-- Each agent has isolated context; summarize important results back to the user yourself
-- Use foreground by default when you need the result before continuing
-- Use run_in_background only for genuinely independent work; you will be notified when it completes
-- Provide concrete prompts with file paths, constraints, and whether code changes are expected`,
-	Parameters: map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"prompt": map[string]any{
-				"type":        "string",
-				"description": "The task for the agent to perform",
-			},
-			"description": map[string]any{
-				"type":        "string",
-				"description": "A short (3-5 word) description of the task",
-			},
-			"subagent_type": map[string]any{
-				"type":        "string",
-				"description": "The type of specialized agent to use for this task",
-			},
-			"name": map[string]any{
-				"type":        "string",
-				"description": "Optional short display name, usually 1-2 words. If omitted, explore mode uses Explorer and edit mode uses Editor.",
-			},
-			"run_in_background": map[string]any{
-				"type":        "boolean",
-				"description": "Set to true to run this agent in the background. You will be notified when it completes.",
-			},
-			"model": map[string]any{
-				"type":        "string",
-				"description": "Optional model override. If omitted, inherits from parent conversation.",
-				"enum":        []string{"sonnet", "opus", "haiku"},
-			},
-			"max_turns": map[string]any{
-				"type":        "number",
-				"description": "Maximum number of conversation turns for the agent. Built-in agents default to 100 and lower values are raised to 100.",
-			},
-			"resume": map[string]any{
-				"type":        "string",
-				"description": "Agent ID to resume from a previous invocation.",
-			},
-			"mode": map[string]any{
-				"type":        "string",
-				"description": "Permission mode for spawned agent.",
-				"enum":        []string{"explore", "edit", "default"},
-			},
-			"isolation": map[string]any{
-				"type":        "string",
-				"description": "Isolation mode for the agent.",
-				"enum":        []string{"worktree"},
-			},
+	return core.ToolSchema{
+		Name:        "Agent",
+		Description: sb.String(),
+		Parameters:  agentToolParameters,
+	}
+}
+
+var agentToolParameters = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"prompt": map[string]any{
+			"type":        "string",
+			"description": "The task for the agent to perform",
 		},
-		"required": []string{"description", "prompt"},
+		"description": map[string]any{
+			"type":        "string",
+			"description": "A short (3-5 word) description of the task",
+		},
+		"subagent_type": map[string]any{
+			"type":        "string",
+			"description": "The type of specialized agent to use for this task",
+		},
+		"name": map[string]any{
+			"type":        "string",
+			"description": "Optional short display name, usually 1-2 words. If omitted, explore mode uses Explorer and edit mode uses Editor.",
+		},
+		"run_in_background": map[string]any{
+			"type":        "boolean",
+			"description": "Set to true to run this agent in the background. You will be notified when it completes.",
+		},
+		"model": map[string]any{
+			"type":        "string",
+			"description": "Optional model override. If omitted, inherits from parent conversation.",
+			"enum":        []string{"sonnet", "opus", "haiku"},
+		},
+		"max_turns": map[string]any{
+			"type":        "number",
+			"description": "Maximum number of conversation turns for the agent. Built-in agents default to 100 and lower values are raised to 100.",
+		},
+		"resume": map[string]any{
+			"type":        "string",
+			"description": "Agent ID to resume from a previous invocation.",
+		},
+		"mode": map[string]any{
+			"type":        "string",
+			"description": "Permission mode for spawned agent.",
+			"enum":        []string{"explore", "edit", "default"},
+		},
+		"isolation": map[string]any{
+			"type":        "string",
+			"description": "Isolation mode for the agent.",
+			"enum":        []string{"worktree"},
+		},
 	},
+	"required": []string{"description", "prompt"},
 }
 
 var sendMessageToolSchema = core.ToolSchema{
 	Name: "SendMessage",
 	Description: `Send a follow-up message to an existing subagent worker.
 
-Use this when you want to keep steering the same worker instead of spawning a fresh one.
+Use this when you need to provide additional input or guidance to a worker after it has started running. Routes to the running agent (preferred via task_id), or resumes a paused agent (via agent_id + subagent_type).
 
-Current runtime behavior:
-- Completed or resumable workers: supported
-- Currently running workers: not supported; wait for completion before sending a follow-up
-
-Usage notes:
-- Prefer task_id when you have a background worker from this conversation
-- Use agent_id when you already know the resumable session/agent ID
-- When using agent_id directly, also provide subagent_type so the correct agent configuration can be restored
-- run_in_background=true resumes the worker asynchronously and returns immediately; you will be automatically notified when it completes — do not poll or check progress`,
+Notes:
+- Prefer task_id when the worker is still running — the message is delivered without a fresh agent boot.
+- Use agent_id only when resuming a paused/saved agent; you must include subagent_type so the right configuration is restored.
+- Use run_in_background to detach the resumed run, mirroring the Agent tool's flag.
+- The agent receives the message as a fresh user turn — provide enough context for it to act on.
+- When using agent_id directly, also provide subagent_type so the correct agent configuration can be restored`,
 	Parameters: map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -99,7 +115,7 @@ Usage notes:
 				"type":        "string",
 				"description": "Agent type to use when resuming by agent_id directly.",
 			},
-			"message": map[string]any{
+			"prompt": map[string]any{
 				"type":        "string",
 				"description": "The follow-up message to send to the worker.",
 			},
@@ -135,7 +151,7 @@ Usage notes:
 				"enum":        []string{"worktree"},
 			},
 		},
-		"required": []string{"message"},
+		"required": []string{"prompt", "description"},
 	},
 }
 
@@ -144,27 +160,21 @@ var skillToolSchema = core.ToolSchema{
 	Name: "Skill",
 	Description: `Execute a skill within the main conversation.
 
-When users ask to perform tasks, check if available skills can help.
-Skills provide specialized capabilities and domain knowledge.
+When users ask you to perform tasks, check if any of the available skills match. Skills provide specialized capabilities and domain knowledge.
 
-When users reference "/<skill-name>" (e.g., "/commit", "/review-pr"), use this tool to invoke it.
-
-Example:
-  User: "run /commit"
-  Assistant: [Calls Skill tool with skill: "commit"]
+When users reference a "slash command" or "/<something>", they are referring to a skill. Use this tool to invoke it.
 
 How to invoke:
-- skill: "pdf" - invoke the pdf skill
-- skill: "commit", args: "-m 'Fix bug'" - invoke with arguments
-- skill: "git:pr" - invoke using namespace:name format
+- Set ` + "`skill`" + ` to the exact name of an available skill (no leading slash). For plugin-namespaced skills use the fully qualified ` + "`plugin:skill`" + ` form.
+- Set ` + "`args`" + ` to pass optional arguments.
 
 Important:
-- Available skills are listed in system-reminder messages in the conversation
+- Available skills are listed in <system-reminder> messages in this conversation; only invoke a skill that appears there or one the user explicitly typed as /<name>
 - When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task
 - NEVER mention a skill without actually calling this tool
 - Do not invoke a skill that is already running
 - Do not use this tool for built-in CLI commands (like /help, /clear, etc.)
-- If you see a <command-name> tag in the current conversation turn, the skill has ALREADY been loaded - follow the instructions directly instead of calling this tool again`,
+`,
 	Parameters: map[string]any{
 		"type": "object",
 		"properties": map[string]any{

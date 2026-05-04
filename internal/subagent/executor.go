@@ -13,6 +13,7 @@ import (
 	"github.com/genai-io/gen-code/internal/llm"
 	"github.com/genai-io/gen-code/internal/log"
 	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/reminder"
 	"github.com/genai-io/gen-code/internal/setting"
 	"github.com/genai-io/gen-code/internal/task"
 	"github.com/genai-io/gen-code/internal/tool"
@@ -251,14 +252,15 @@ func (e *Executor) buildAgent(ctx context.Context, rc *runConfig, agentCwd strin
 		}
 	}
 
-	skillsPrompt, agentsPrompt := e.capabilityPrompts(rc.config)
+	// Subagent system prompt deliberately omits skills and memory — those
+	// ride on the first user message as <system-reminder> blocks built by
+	// loadConversation, keeping subagents on the same harness channel
+	// pattern as the main agent.
+	_, agentDirectoryGetter := e.capabilityPrompts(rc.config)
 
 	sys := system.Build(core.ScopeSubagent,
 		system.WithProvider(e.provider.Name()),
 		system.WithGitGuidelines(e.isGit),
-		system.WithMemory(e.userInstructions, e.projectInstructions),
-		system.WithSkills(skillsPrompt),
-		system.WithAgents(agentsPrompt),
 		system.WithSubagentIdentity(rc.brief),
 		system.WithEnvironment(system.Environment{
 			Cwd:     agentCwd,
@@ -269,6 +271,7 @@ func (e *Executor) buildAgent(ctx context.Context, rc *runConfig, agentCwd strin
 
 	// Tools — adapt legacy tool registry + MCP tools
 	toolSet := newAgentToolSet(rc.config.AllowTools.Names(), rc.config.DenyTools.BareNames(), e.mcpGetter)
+	toolSet.AgentDirectory = agentDirectoryGetter
 	schemas := filterSchemasForPermission(toolSet.Tools(), rc.permMode, rc.config.AllowTools)
 	var ag core.Agent
 	tools := tool.AdaptToolRegistry(schemas, func() string { return agentCwd }, tool.WithMessagesGetterProvider(func() []core.Message {
@@ -309,7 +312,7 @@ func (e *Executor) buildAgent(ctx context.Context, rc *runConfig, agentCwd strin
 	return ag, cleanup, nil
 }
 
-func (e *Executor) loadConversation(ag core.Agent, ctx context.Context, req AgentRequest) error {
+func (e *Executor) loadConversation(ag core.Agent, ctx context.Context, rc *runConfig, req AgentRequest) error {
 	// Resume from saved session
 	if req.ResumeID != "" {
 		if err := e.resumeFromSession(ag, ctx, req.ResumeID, req.Prompt); err != nil {
@@ -318,9 +321,34 @@ func (e *Executor) loadConversation(ag core.Agent, ctx context.Context, req Agen
 		return nil
 	}
 
-	// Fresh start
-	ag.Append(ctx, core.UserMessage(req.Prompt, nil))
+	// Fresh start: harness-managed reminders ride on the first user message
+	// as <system-reminder> blocks, matching the main agent's pattern.
+	skillsPrompt, _ := e.capabilityPrompts(rc.config)
+	reminders := collectSubagentReminders(skillsPrompt, e.userInstructions, e.projectInstructions)
+	prompt := reminder.AttachToContent(req.Prompt, reminders)
+	ag.Append(ctx, core.UserMessage(prompt, nil))
 	return nil
+}
+
+// collectSubagentReminders returns fully-wrapped <system-reminder> blocks
+// for the subagent's first user message. Empty inputs produce no entries.
+//
+// Mirrors the main agent's reminder.Service providers (skills directory,
+// memory-user, memory-project) but emits inline because subagents are
+// one-shot — there is no long-lived service to register against.
+func collectSubagentReminders(skills, userMemory, projectMemory string) []string {
+	bodies := []string{
+		skills,
+		reminder.WrapMemory("user", userMemory),
+		reminder.WrapMemory("project", projectMemory),
+	}
+	out := make([]string, 0, len(bodies))
+	for _, b := range bodies {
+		if w := reminder.Wrap(b); w != "" {
+			out = append(out, w)
+		}
+	}
+	return out
 }
 
 func interpretStopReason(result *core.Result, maxTurns int) (success bool, errMsg string) {
@@ -392,17 +420,23 @@ func modeChecker(mode PermissionMode) perm.Checker {
 	}
 }
 
-func (e *Executor) capabilityPrompts(config *AgentConfig) (skillsPrompt, agentsPrompt string) {
+// capabilityPrompts returns the skills section body and a getter for the
+// agent directory body that should be embedded into the Agent tool's
+// description. Both are gated on the subagent's tool allow list — a subagent
+// without the Skill tool gets no skills section, and one without the Agent
+// tool gets no directory (the getter returns "").
+func (e *Executor) capabilityPrompts(config *AgentConfig) (skillsPrompt string, agentDirectory func() string) {
 	if config == nil {
-		return "", ""
+		return "", nil
 	}
 	if config.AllowTools == nil || config.AllowTools.HasName("Skill") {
 		skillsPrompt = e.skillsPrompt
 	}
 	if config.AllowTools == nil || config.AllowTools.HasName("Agent") {
-		agentsPrompt = e.agentsPrompt
+		body := e.agentsPrompt
+		agentDirectory = func() string { return body }
 	}
-	return skillsPrompt, agentsPrompt
+	return skillsPrompt, agentDirectory
 }
 
 // subagentPermissionFunc returns the subagent permission gate. The pipeline

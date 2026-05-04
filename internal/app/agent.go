@@ -17,6 +17,7 @@ import (
 	"github.com/genai-io/gen-code/internal/llm"
 	"github.com/genai-io/gen-code/internal/log"
 	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/reminder"
 	"github.com/genai-io/gen-code/internal/setting"
 	"github.com/genai-io/gen-code/internal/subagent"
 	"github.com/genai-io/gen-code/internal/tool"
@@ -70,12 +71,8 @@ func (m *model) buildAgentParams() agent.BuildParams {
 		CWDFunc: func() string { return m.env.CWD },
 		IsGit:   m.env.IsGit,
 
-		UserInstructions:    m.env.CachedUserInstructions,
-		ProjectInstructions: m.env.CachedProjectInstructions,
-		SkillsPrompt:        m.services.Skill.PromptSection(),
-		AgentsPrompt:        m.services.Subagent.PromptSection(),
-		IdentityText:        m.activeIdentityBody(),
-		SkillInvocation:     m.userInput.Skill.ActiveInvocation,
+		AgentDirectory: func() string { return m.services.Subagent.PromptSection() },
+		IdentityText:   m.activeIdentityBody(),
 
 		DisabledTools: m.services.Setting.DisabledTools(),
 		MCPTools:      mcpTools,
@@ -143,10 +140,53 @@ func (m *model) sendToAgent(content string, images []core.Image) tea.Cmd {
 		return nil
 	}
 	svc := m.services.Agent
+	content = m.attachPendingReminders(content)
 	return func() tea.Msg {
 		svc.Send(content, images)
 		return nil
 	}
+}
+
+// attachPendingReminders drains the reminder queue and appends any pending
+// <system-reminder> blocks to the user message content. The harness uses this
+// channel to deliver session/project context (skills, memory, ad-hoc notices)
+// without invalidating the system-prompt cache prefix.
+func (m *model) attachPendingReminders(content string) string {
+	if m.services.Reminder == nil {
+		return content
+	}
+	pending := m.services.Reminder.Drain()
+	if len(pending) == 0 {
+		return content
+	}
+	return reminder.AttachToContent(content, pending)
+}
+
+// wireReminderProviders registers the harness providers that emit on
+// SessionStart and PostCompact. Each provider's render closure captures the
+// services struct pointer so it always reads the live registry/cache state
+// — that way settings reload and skill toggles surface in the next emission
+// without ever mutating the cached system prompt.
+func (m *model) wireReminderProviders() {
+	if m.services.Reminder == nil {
+		return
+	}
+
+	// Skill.PromptSection already produces a self-introduced body
+	// ("Use the Skill tool to invoke these capabilities: ...") so it goes
+	// inside <system-reminder> verbatim, matching Claude Code's shape.
+	m.services.Reminder.Register(reminder.NewProvider(reminder.ProviderSkillsDirectory, func() string {
+		if m.services.Skill == nil {
+			return ""
+		}
+		return m.services.Skill.PromptSection()
+	}))
+	m.services.Reminder.Register(reminder.NewProvider(reminder.ProviderMemoryUser, func() string {
+		return reminder.WrapMemory("user", m.env.CachedUserInstructions)
+	}))
+	m.services.Reminder.Register(reminder.NewProvider(reminder.ProviderMemoryProject, func() string {
+		return reminder.WrapMemory("project", m.env.CachedProjectInstructions)
+	}))
 }
 
 // SendToActiveAgent sends a message to the agent inbox synchronously during

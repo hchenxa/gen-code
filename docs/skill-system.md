@@ -207,16 +207,16 @@ The Skill tool allows the LLM to invoke skills programmatically.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### System Prompt Integration
+### Harness Injection (System-Reminder Channel)
 
-Active skills are included in the system prompt as the `<skills>` directory
-(slot 5). The body lists name + one-line description; the `<skills>`
-envelope is added by the catalog. See
-[System Prompt → Skills](system-prompt.md#skills--agent-injection) for
-the slot model and how `Skill.Registry.GetSkillsSection()` plugs in.
+Active skills are surfaced to the LLM through the **system-reminder channel**,
+not the system prompt. The harness reminder service
+(`internal/reminder.Service`) holds a `skills-directory` provider that emits
+the active-skills body inside a `<system-reminder>` block on the user's
+first message of every session and again after every PostCompact event:
 
-```xml
-<skills>
+```text
+<system-reminder>
 Use the Skill tool to invoke these capabilities:
 
 - git:commit: Create git commits with DCO sign-off [2 scripts]
@@ -224,24 +224,45 @@ Use the Skill tool to invoke these capabilities:
 - my-skill: Do something useful
 
 Invoke with: Skill(skill="name", args="optional args")
-</skills>
+</system-reminder>
 ```
+
+**Why a reminder, not a system-prompt slot?**
+
+| Concern | System prompt | System-reminder |
+|---------|--------------|-----------------|
+| Cache when skill state toggles | invalidates prefix every change | unchanged |
+| Survives PostCompact | yes, but cache hit-or-miss is brittle | re-injected by the harness |
+| Visible to subagents | needs separate `WithSkills` wiring | attached to subagent's first user message uniformly |
+
+The provider is registered in `model.wireReminderProviders()` (in
+`internal/app/agent.go`); the body comes from
+`skill.Registry.PromptSection()`.
+
+For subagents, `subagent.collectSubagentReminders` builds an equivalent
+`<system-reminder>` body and `loadConversation` attaches it to the subagent's
+first user message — same channel, just different injection site (no
+long-running session, no PostCompact).
+
+See [System Prompt → Skills (system-reminder channel)](system-prompt.md#skills-system-reminder-channel)
+for the full channel design.
 
 ## Progressive Loading
 
 The skill system uses three-level progressive loading to conserve context:
 
-| Level | When Loaded | Content |
-|-------|-------------|---------|
-| 1 | Always (in `<skills>` slot) | Name + description (~100 words) |
-| 2 | On skill invocation | Full SKILL.md instructions (<5k words) |
-| 3 | On demand | Resource files (scripts, references, assets) |
+| Level | When Loaded | Where | Content |
+|-------|-------------|-------|---------|
+| 1 | Always | `<system-reminder>` in user message | Name + description (~100 words) |
+| 2 | On skill invocation | tool result or user message | Full SKILL.md instructions (<5k words) |
+| 3 | On demand inside the body | tool calls (Read / Bash) | Resource files (scripts, references, assets) |
 
-### Level 1: Always in slot 5
+### Level 1: System-Reminder
 
-`Registry.GetSkillsSection()` returns plain body text (no XML wrapper);
-the system catalog adds `<skills>...</skills>`. Only **active** skills
-appear (state machine in §Skill State Management).
+`Registry.PromptSection()` returns plain body text (no XML wrapper). The
+reminder service wraps it in `<system-reminder>...</system-reminder>` and
+attaches it to the next user message. Only **active** skills appear (state
+machine in §Skill State Management).
 
 ### Level 2: Skill Invocation
 
@@ -249,7 +270,7 @@ When the LLM calls `Skill(name, args)`, the SkillTool returns the full
 content via `Registry.GetSkillInvocationPrompt(name)`. When the user types
 `/<skill-name>`, the body is also injected as `Skill.PendingInstructions`
 and prepended to the next user message — see
-[System Prompt → Invocation](system-prompt.md#invocation-slot-6).
+[System Prompt → Skill invocation](system-prompt.md#skill-invocation-inline-in-user-message).
 
 ### Level 3: Resource Files
 
@@ -303,7 +324,9 @@ When skill not found or disabled:
 |------|-------------|
 | `internal/skill/types.go` | Skill struct and state definitions |
 | `internal/skill/loader.go` | SKILL.md parsing and resource scanning |
-| `internal/skill/registry.go` | Global skill registry |
+| `internal/skill/registry.go` | Global skill registry; `PromptSection()` produces the reminder body |
+| `internal/reminder/reminder.go` | Harness reminder service that hosts the `skills-directory` provider |
+| `internal/app/agent.go` | `wireReminderProviders` registers the provider |
 | `internal/skill/store.go` | State persistence |
 | `internal/tool/skill.go` | Skill tool implementation |
 | `internal/tool/ui/skill.go` | Skill result rendering |

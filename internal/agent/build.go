@@ -23,19 +23,15 @@ type BuildParams struct {
 	CWDFunc func() string // dynamic CWD for tool execution; falls back to CWD if nil
 	IsGit   bool
 
-	UserInstructions    string
-	ProjectInstructions string
-	SkillsPrompt        string
-	AgentsPrompt        string
+	// AgentDirectory, when non-nil, supplies the available-agents listing
+	// embedded into the Agent tool's description. Returning an empty string
+	// hides the listing entirely (used by subagent contexts to discourage
+	// recursive spawning).
+	AgentDirectory func() string
 
 	// IdentityText, when non-empty, replaces the default identity slot with
 	// a user-defined persona. Sourced from ~/.gen/identities/<name>.md.
 	IdentityText string
-
-	// SkillInvocation, when non-empty, is registered as the active skill body
-	// in the system prompt. Equivalent to a /skill activation that survives
-	// agent re-creation.
-	SkillInvocation string
 
 	DisabledTools map[string]bool
 	MCPTools      []core.Tool
@@ -57,10 +53,6 @@ func buildAgent(p BuildParams) (core.Agent, *PermissionBridge, error) {
 		system.WithProvider(client.Name()),
 		system.WithIdentity(p.IdentityText),
 		system.WithGitGuidelines(p.IsGit),
-		system.WithMemory(p.UserInstructions, p.ProjectInstructions),
-		system.WithSkills(p.SkillsPrompt),
-		system.WithAgents(p.AgentsPrompt),
-		system.WithSkillInvocation(p.SkillInvocation),
 		system.WithEnvironment(system.Environment{
 			Cwd:     p.CWD,
 			IsGit:   p.IsGit,
@@ -75,7 +67,8 @@ func buildAgent(p BuildParams) (core.Agent, *PermissionBridge, error) {
 	}
 
 	schemas := (&tool.Set{
-		Disabled: p.DisabledTools,
+		Disabled:       p.DisabledTools,
+		AgentDirectory: p.AgentDirectory,
 	}).Tools()
 	var adaptOpts []tool.AdaptOption
 	if p.InteractionFunc != nil {

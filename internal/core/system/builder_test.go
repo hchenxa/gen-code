@@ -36,52 +36,42 @@ func TestBuildPromptCaching(t *testing.T) {
 	}
 }
 
-func TestBuildPromptContainsMemory(t *testing.T) {
+func TestBuildPromptOmitsMemory(t *testing.T) {
+	// Memory (CLAUDE.md / GEN.md) no longer lives in the system prompt — it
+	// rides on user messages as a <system-reminder> block via the harness's
+	// reminder service so memory edits don't invalidate the cache prefix.
 	sys := Build(core.ScopeMain,
 		WithEnvironment(Environment{Cwd: "/tmp/test"}),
-		WithMemory("Always use tabs for indentation.", "This is a Go project using Bubble Tea."),
 	)
 
 	prompt := sys.Prompt()
-	if !strings.Contains(prompt, `<memory scope="user">`) {
-		t.Error("prompt should contain <memory scope=\"user\"> tag")
-	}
-	if !strings.Contains(prompt, "Always use tabs for indentation.") {
-		t.Error("prompt should contain user memory content")
-	}
-	if !strings.Contains(prompt, `<memory scope="project">`) {
-		t.Error("prompt should contain <memory scope=\"project\"> tag")
-	}
-	if !strings.Contains(prompt, "This is a Go project using Bubble Tea.") {
-		t.Error("prompt should contain project memory content")
+	if strings.Contains(prompt, "<memory") {
+		t.Error("prompt should NOT contain memory section (now a system-reminder)")
 	}
 }
 
-func TestBuildPromptContainsCapabilities(t *testing.T) {
+func TestBuildPromptOmitsCapabilities(t *testing.T) {
+	// Skills and agents directories no longer live in the system prompt.
+	// Skills ride on user messages as <system-reminder> blocks; agents are
+	// embedded in the Agent tool's description.
 	sys := Build(core.ScopeMain,
 		WithEnvironment(Environment{Cwd: "/tmp/test"}),
-		WithSkills("- commit: Write commit messages"),
-		WithAgents("- explorer: read-only research"),
 	)
 
 	prompt := sys.Prompt()
-	if !strings.Contains(prompt, "<skills>") {
-		t.Error("prompt should contain <skills> tag")
+	if strings.Contains(prompt, "<skills>") {
+		t.Error("prompt should NOT contain <skills> tag (now lives in <system-reminder>)")
 	}
-	if !strings.Contains(prompt, "<agents>") {
-		t.Error("prompt should contain <agents> tag")
+	if strings.Contains(prompt, "<agents>") {
+		t.Error("prompt should NOT contain <agents> tag (now lives in Agent tool description)")
 	}
 }
 
 func TestBuildPromptOrder_StableBeforeVolatile(t *testing.T) {
-	// Volatile sections (env, notice) must sit AFTER stable ones so the
-	// prompt-cache prefix survives daily date rollovers and hook injections.
+	// Volatile sections (environment) must sit AFTER stable ones so the
+	// prompt-cache prefix survives daily date rollovers.
 	sys := Build(core.ScopeMain,
 		WithEnvironment(Environment{Cwd: "/tmp/test", IsGit: true}),
-		WithMemory("USER_MARKER", "PROJECT_MARKER"),
-		WithSkills("SKILLS_MARKER"),
-		WithAgents("AGENTS_MARKER"),
-		WithNotice("test", "NOTICE_MARKER"),
 	)
 	prompt := sys.Prompt()
 
@@ -89,14 +79,7 @@ func TestBuildPromptOrder_StableBeforeVolatile(t *testing.T) {
 		"identity":   strings.Index(prompt, "interactive AI assistant"),
 		"policy":     strings.Index(prompt, "<policy>"),
 		"guidelines": strings.Index(prompt, `<guidelines name="tools">`),
-		// guidelines body markers come from the new tools.txt which no longer has a # header
-
-		"user":    strings.Index(prompt, "USER_MARKER"),
-		"project": strings.Index(prompt, "PROJECT_MARKER"),
-		"skills":  strings.Index(prompt, "SKILLS_MARKER"),
-		"agents":  strings.Index(prompt, "AGENTS_MARKER"),
-		"env":     strings.Index(prompt, "<environment>"),
-		"notice":  strings.Index(prompt, "NOTICE_MARKER"),
+		"env":        strings.Index(prompt, "<environment>"),
 	}
 	for name, idx := range indices {
 		if idx < 0 {
@@ -104,7 +87,7 @@ func TestBuildPromptOrder_StableBeforeVolatile(t *testing.T) {
 		}
 	}
 
-	order := []string{"identity", "policy", "guidelines", "user", "project", "skills", "agents", "env", "notice"}
+	order := []string{"identity", "policy", "guidelines", "env"}
 	for i := 1; i < len(order); i++ {
 		if indices[order[i-1]] >= indices[order[i]] {
 			t.Errorf("expected %s before %s; got idx %d vs %d",
@@ -203,16 +186,16 @@ func TestSystemUseDropRefresh(t *testing.T) {
 
 	// Use: register a new section.
 	sys.Use(core.Section{
-		Slot: core.SlotInvocation, Name: "invocation-test", Source: core.Dynamic,
-		Render: func() string { return "INVOCATION_BODY" },
+		Slot: core.SlotEnvironment, Name: "test-section", Source: core.Dynamic,
+		Render: func() string { return "TEST_SECTION_BODY" },
 	})
-	if !strings.Contains(sys.Prompt(), "INVOCATION_BODY") {
+	if !strings.Contains(sys.Prompt(), "TEST_SECTION_BODY") {
 		t.Error("Use should add a new section's content to Prompt()")
 	}
 
 	// Drop: remove it.
-	sys.Drop("invocation-test")
-	if strings.Contains(sys.Prompt(), "INVOCATION_BODY") {
+	sys.Drop("test-section")
+	if strings.Contains(sys.Prompt(), "TEST_SECTION_BODY") {
 		t.Error("Drop should remove the section from Prompt()")
 	}
 

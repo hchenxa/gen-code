@@ -99,6 +99,7 @@ func newModel(opts setting.RunOptions) (*model, error) {
 	m.configureAsyncHookCallback()
 	m.ensureMemoryContextLoaded()
 	m.ReconfigureAgentTool()
+	m.wireReminderProviders()
 	m.InitTaskStorage()
 	if err := m.applyRunOptions(opts); err != nil {
 		return nil, err
@@ -572,6 +573,13 @@ func (m *model) HandleAgentCompact(info core.CompactInfo) tea.Cmd {
 	if m.services.Hook != nil {
 		m.services.Hook.ExecuteAsync(hook.PostCompact, hook.HookInput{Trigger: "auto"})
 	}
+	// Auto-compact summarizes the conversation history, dropping any
+	// system-reminder content that previously rode on user messages. Re-enqueue
+	// session-level reminders so they reattach to the next user turn and the
+	// LLM still has skills/memory/etc. context.
+	if m.services.Reminder != nil {
+		m.services.Reminder.EnqueueAllProviders()
+	}
 
 	scrollPart := tea.Sequence(append(scrollbackCmds, tea.Println(boundary), tea.ClearScreen)...)
 	return tea.Batch(scrollPart, m.ContinueOutbox(), kit.StatusTimer(3*time.Second, token))
@@ -607,6 +615,11 @@ func (m *model) HandleCompactResult(msg conv.CompactResultMsg) tea.Cmd {
 	}
 	if m.services.Hook != nil {
 		m.services.Hook.ExecuteAsync(hook.PostCompact, hook.HookInput{Trigger: msg.Trigger})
+	}
+	// Manual /compact also drops conversation-history reminders. Re-enqueue
+	// providers so the next user turn carries fresh session-level context.
+	if m.services.Reminder != nil {
+		m.services.Reminder.EnqueueAllProviders()
 	}
 
 	scrollPart := tea.Sequence(append(scrollbackCmds, tea.Println(boundary), tea.ClearScreen)...)

@@ -109,7 +109,7 @@ func (e *Executor) executePreparedRun(ctx context.Context, run *preparedRun) (*c
 	}
 	defer cleanupAgent()
 
-	if err := e.loadConversation(ag, ctx, run.req); err != nil {
+	if err := e.loadConversation(ag, ctx, run.cfg, run.req); err != nil {
 		return nil, err
 	}
 	if run.req.OnProgress != nil {

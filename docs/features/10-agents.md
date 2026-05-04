@@ -202,3 +202,8 @@ tmux capture-pane -t t_agent -p
 tmux kill-session -t t_agent
 rm -rf /tmp/agent_test
 ```
+
+## See Also
+
+- [Feature 23: Harness Channels & System-Reminder](23-harness-channels.md) — the available-agents directory is **embedded into the `Agent` tool's `description`** (channel B), not the system prompt. **Scenario 4** there is a `DEV_DIR`-based manual verification of `/agents` toggle propagating to the next agent rebuild.
+

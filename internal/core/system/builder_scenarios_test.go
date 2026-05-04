@@ -43,12 +43,6 @@ func testScenarios() []scenario {
 			opts: func() []Option {
 				return []Option{
 					WithGitGuidelines(true),
-					WithMemory(
-						"Always use tabs for indentation.\nPrefer short variable names.",
-						"This is a Go project using Bubble Tea.\nRun tests with: go test ./...",
-					),
-					WithSkills("- git: Git workflow automation\n- review: Review a pull request\n- init: Initialize a new CLAUDE.md file"),
-					WithAgents("- general-purpose: General multi-step agent\n  Tools: *\n- code-reviewer: Reviews code changes without mutating the workspace\n  Tools: Read, Glob, Grep"),
 					WithEnvironment(mainEnv),
 				}
 			},
@@ -59,8 +53,6 @@ func testScenarios() []scenario {
 			opts: func() []Option {
 				return []Option{
 					WithGitGuidelines(false),
-					WithMemory("Always use tabs.", "Go project."),
-					WithSkills("- review: Review a pull request"),
 					WithEnvironment(Environment{Cwd: "/home/user/myproject", IsGit: false, ModelID: "claude-sonnet-4-20250514"}),
 				}
 			},
@@ -71,7 +63,6 @@ func testScenarios() []scenario {
 			opts: func() []Option {
 				return []Option{
 					WithGitGuidelines(true),
-					WithMemory("Short variable names.", "Go project."),
 					WithSubagentIdentity(SubagentBrief{
 						AgentName:   "general-purpose",
 						Description: "General-purpose agent for research and multi-step tasks.",
@@ -87,8 +78,6 @@ func testScenarios() []scenario {
 			opts: func() []Option {
 				return []Option{
 					WithGitGuidelines(true),
-					WithMemory("Short variable names.", "Go project."),
-					WithSkills("- git: Git workflow automation"),
 					WithSubagentIdentity(SubagentBrief{
 						AgentName:    "general-purpose",
 						Description:  "General-purpose agent for research and execution.",
@@ -186,10 +175,10 @@ func TestScenarioMainSession_HasAllSections(t *testing.T) {
 			{"identity", "interactive AI assistant"},
 			{"environment", "<environment>"},
 			{"git env", "git: yes"},
-			{"user memory", `<memory scope="user">`},
-			{"project memory", `<memory scope="project">`},
-			{"skills", "<skills>"},
-			{"agents", "<agents>"},
+			// Memory, skills, agents intentionally absent from system prompt:
+			//   - <memory> rides on user messages as <system-reminder>
+			//   - <skills> rides on user messages as <system-reminder>
+			//   - agent directory lives in the Agent tool's description
 			{"core guidelines", `<guidelines name="tools">`},
 			{"git guidelines", `<guidelines name="git">`},
 			{"question guidelines", "AskUserQuestion"},
@@ -226,7 +215,7 @@ func TestScenarioSubagentReadonly_NoMainOnlyGuidelines(t *testing.T) {
 	}
 }
 
-func TestScenarioSubagentGeneral_HasSkillsButNoAgents(t *testing.T) {
+func TestScenarioSubagentGeneral_NoCapabilitiesInSystemPrompt(t *testing.T) {
 	for _, sc := range testScenarios() {
 		if sc.name != "subagent_general" {
 			continue
@@ -237,8 +226,10 @@ func TestScenarioSubagentGeneral_HasSkillsButNoAgents(t *testing.T) {
 		if !strings.Contains(prompt, "general-purpose subagent") {
 			t.Error("should announce subagent identity")
 		}
-		if !strings.Contains(prompt, "<skills>") {
-			t.Error("subagent with WithSkills should have skills section")
+		// Skills now ride on the subagent's first user message as a
+		// <system-reminder> instead of appearing in the system prompt.
+		if strings.Contains(prompt, "<skills>") {
+			t.Error("subagent system prompt should NOT have skills section")
 		}
 		// Subagents do not recursively spawn subagents — no agents section.
 		if strings.Contains(prompt, "<agents>") {

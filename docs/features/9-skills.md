@@ -10,7 +10,7 @@ Skills are reusable prompt workflows stored as Markdown files with YAML frontmat
 |-------|----------|
 | `Disable` | Hidden from user and model |
 | `Enable` | Available as `/command`; model is unaware |
-| `Active` | Included in system prompt; model is aware |
+| `Active` | Listed in the harness `<system-reminder>` channel; model is aware (see [Feature 23](23-harness-channels.md)) |
 
 **Load scopes** (lowest → highest priority):
 
@@ -181,3 +181,8 @@ tmux capture-pane -t t_skills -p
 tmux kill-session -t t_skills
 rm -rf /tmp/skill_test
 ```
+
+## See Also
+
+- [Feature 23: Harness Channels & System-Reminder](23-harness-channels.md) — the active-skills directory rides on `<system-reminder>` inside user messages, not in the system prompt. **Scenario 3** there is a `DEV_DIR`-based manual verification of `/skills` toggle live updates; **Scenario 6** verifies the queue stays idempotent under rapid re-toggles.
+

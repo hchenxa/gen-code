@@ -176,76 +176,6 @@ func WithGitGuidelines(isGit bool) Option {
 	}
 }
 
-// WithMemory injects user-level and project-level instruction sections from
-// GEN.md / CLAUDE.md. Empty strings are skipped.
-func WithMemory(user, project string) Option {
-	return func(sys core.System, _ core.Scope) {
-		if strings.TrimSpace(user) != "" {
-			sys.Use(core.Section{
-				Slot: core.SlotMemory, Name: "memory-user", Source: core.FromFile,
-				Render: func() string {
-					return wrap("memory", map[string]string{"scope": "user"}, user)
-				},
-			})
-		}
-		if strings.TrimSpace(project) != "" {
-			sys.Use(core.Section{
-				Slot: core.SlotMemory, Name: "memory-project", Source: core.FromFile,
-				Render: func() string {
-					return wrap("memory", map[string]string{"scope": "project"}, project)
-				},
-			})
-		}
-	}
-}
-
-// WithSkills adds the available-skills directory section.
-// Body should be a pre-rendered list (one skill per line, names + descriptions).
-// Empty body skips the section.
-func WithSkills(body string) Option {
-	return func(sys core.System, _ core.Scope) {
-		if strings.TrimSpace(body) == "" {
-			return
-		}
-		sys.Use(core.Section{
-			Slot: core.SlotCapabilities, Name: "capabilities-skills", Source: core.FromFile,
-			Render: func() string { return wrap("skills", nil, body) },
-		})
-	}
-}
-
-// WithAgents adds the available-agents directory section. Subagents are
-// leaves by default — only main agents typically populate this.
-func WithAgents(body string) Option {
-	return func(sys core.System, _ core.Scope) {
-		if strings.TrimSpace(body) == "" {
-			return
-		}
-		sys.Use(core.Section{
-			Slot: core.SlotCapabilities, Name: "capabilities-agents", Source: core.FromFile,
-			Render: func() string { return wrap("agents", nil, body) },
-		})
-	}
-}
-
-// WithSkillInvocation injects a runtime-active skill body into the system
-// prompt. Body is expected to be a self-contained text block; it is wrapped
-// here as <invocation kind="skill">. Drop via sys.Drop("invocation-skill")
-// when the activation ends.
-func WithSkillInvocation(body string) Option {
-	return func(sys core.System, _ core.Scope) {
-		if strings.TrimSpace(body) == "" {
-			return
-		}
-		sys.Use(core.Section{
-			Slot: core.SlotInvocation, Name: "invocation-skill", Source: core.Dynamic,
-			Render: func() string {
-				return wrap("invocation", map[string]string{"kind": "skill"}, body)
-			},
-		})
-	}
-}
-
 // Subagent identity (Scope == ScopeSubagent)
 
 // SubagentBrief carries everything needed to render a subagent's identity.
@@ -347,22 +277,4 @@ func renderEnvironment(env Environment) string {
 		env.Cwd, git, runtime.GOOS, runtime.GOARCH, env.ModelID,
 	)
 	return wrap("environment", nil, body)
-}
-
-// Notice (hook-injected runtime reminders, also volatile)
-
-// WithNotice appends a runtime notice (e.g. hook-injected reminder).
-// Multiple notices coexist by passing distinct names.
-func WithNotice(name, body string) Option {
-	return func(sys core.System, _ core.Scope) {
-		if strings.TrimSpace(body) == "" {
-			return
-		}
-		sys.Use(core.Section{
-			Slot: core.SlotNotice, Name: "notice-" + name, Source: core.Dynamic,
-			Render: func() string {
-				return wrap("notice", map[string]string{"name": name}, body)
-			},
-		})
-	}
 }

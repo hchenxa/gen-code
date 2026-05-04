@@ -10,6 +10,51 @@ User input → LLM inference → Tool execution → LLM inference → ... → en
 
 The Main Agent can spawn Subagents via the `Agent` tool to delegate work. Each Subagent is a full LLM loop with its own conversation, tool set, and system prompt. Subagents start with a fresh context — the parent must put all needed background into `AgentRequest.Prompt`. See [System Prompt → Subagent identity replacement](system-prompt.md#subagent-identity-replacement) for how the subagent's identity slot is built from its `AgentConfig`.
 
+## Agent Directory Injection (Tool Description Channel)
+
+Available agent types are listed inside the `Agent` tool's `description`
+field — not in a `<agents>` system-prompt section. `agentToolSchema(directory)`
+in `internal/tool/schema_agent.go` is a constructor that takes a directory
+body and embeds it directly into the description:
+
+```text
+Launch a subagent for complex work that benefits from separate context or parallel execution.
+
+Available agent types for the Agent tool:
+
+- general-purpose: General multi-step agent
+  Tools: *
+- code-reviewer: Reviews code changes without mutating the workspace
+  Tools: Read, Glob, Grep
+
+When using the Agent tool, specify a subagent_type parameter to ...
+```
+
+The directory body comes from `subagent.Registry.GetAgentsSection()`. The
+plumbing:
+
+```
+tool.Set { AgentDirectory func() string }
+        │
+        ▼
+GetToolSchemasWith(SchemaOptions{ AgentDirectory: ... })
+        │
+        ▼
+agentToolSchema(directory) — embeds directory in Description
+        │
+        ▼
+sent as the API tools[] entry for "Agent"
+```
+
+Subagents pass an `AgentDirectory` getter that returns `""` (or no getter at
+all) so their Agent tool — if allow-listed — sees no directory: this
+discourages recursive spawning even when the subagent technically has the
+tool available.
+
+This mirrors Claude Code, where the Agent tool's description is the single
+source of truth for available agent types and the system prompt has no
+`<agents>` block.
+
 There are exactly two interaction patterns:
 
 ```

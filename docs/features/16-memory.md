@@ -2,7 +2,7 @@
 
 ## Overview
 
-gencode injects project and user instructions from Markdown files into the LLM's system prompt at startup.
+gencode injects project and user instructions from Markdown files into the next user message as `<system-reminder>` blocks at SessionStart and after every PostCompact (see [Feature 23](23-harness-channels.md)). The system prompt itself stays free of memory content so the prompt cache is invariant across project switches and memory edits.
 
 **Files:**
 
@@ -159,3 +159,8 @@ tmux capture-pane -t t_mem -p
 tmux kill-session -t t_mem
 rm -rf /tmp/mem_test
 ```
+
+## See Also
+
+- [Feature 23: Harness Channels & System-Reminder](23-harness-channels.md) — memory bodies (`<memory scope="user">…</memory>` and `<memory scope="project">…</memory>`) ride on `<system-reminder>` inside the next user message, **not** the system prompt. **Scenario 1** verifies cold-start injection; **Scenario 5** verifies PostCompact re-injection.
+

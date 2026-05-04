@@ -76,11 +76,13 @@ func (m *model) configureAsyncHookCallback() {
 func (m *model) fireStartupHooks() {
 	outcome := m.executeStartupHooks(context.Background())
 	m.applyStartupHookOutcome(outcome)
-	if outcome.AdditionalContext != "" {
-		m.conv.Append(core.ChatMessage{
-			Role:    core.RoleUser,
-			Content: outcome.AdditionalContext,
-		})
+	// Hook-injected context rides on the same harness channel as skills and
+	// memory: it gets queued for the first user message as a
+	// <system-reminder>, not appended as a standalone user message. This
+	// keeps SessionStart context out of the visible chat and lets it
+	// re-emerge after PostCompact alongside other harness reminders.
+	if outcome.AdditionalContext != "" && m.services.Reminder != nil {
+		m.services.Reminder.Enqueue(outcome.AdditionalContext)
 	}
 }
 

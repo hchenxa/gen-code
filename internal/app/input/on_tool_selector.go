@@ -54,7 +54,7 @@ func NewToolSelector(
 
 // EnterSelect enters tool selection mode.
 func (s *ToolSelector) EnterSelect(width, height int, disabledTools map[string]bool, mcpTools func() []core.ToolSchema) error {
-	allTools := coretool.GetToolSchemasWithMCP(mcpTools)
+	allTools := coretool.GetToolSchemasWith(coretool.SchemaOptions{MCPTools: mcpTools})
 
 	s.tools = make([]toolItem, 0, len(allTools))
 	for _, t := range allTools {

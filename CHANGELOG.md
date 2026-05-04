@@ -3,6 +3,16 @@
 All notable changes to Gen Code are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v1.17.0] - 2026-05-04
+
+### Added
+- Reminder system for proactive context injection during agent execution
+
+### Changed
+- Streamlined extensibility documentation in README
+- Updated benchmark documentation title
+- Updated CHANGELOG with latest changes
+
 ## [v1.16.0] - 2026-05-04
 
 ### Added

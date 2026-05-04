@@ -1,0 +1,232 @@
+// Package reminder manages <system-reminder> content that the harness
+// attaches to user messages.
+//
+// system-reminder is a content tag the LLM sees inside a user message, but
+// treats as a system instruction (not real user input). Compared with the
+// system prompt, it is:
+//
+//   - cache-friendly: lives in immutable conversation history once attached
+//   - self-managed: the harness re-injects it on PostCompact
+//   - low-churn: state changes append a new tag instead of invalidating
+//     the system-prompt cache prefix
+//
+// Use the reminder package for content that is "session-level" or
+// "project-level" and may change during a session — skills directory, memory
+// files, ad-hoc notices. Behavior that is true for every Gen Code session
+// (identity, policy, guidelines) belongs in the system prompt instead.
+package reminder
+
+import (
+	"strings"
+	"sync"
+)
+
+// Standard provider IDs used by the harness. Constants keep ID strings out
+// of caller code so renames stay typo-free and refactors are mechanical.
+const (
+	ProviderSkillsDirectory = "skills-directory"
+	ProviderMemoryUser      = "memory-user"
+	ProviderMemoryProject   = "memory-project"
+)
+
+// Provider supplies a reminder body on demand. Returning an empty string
+// skips emission (e.g. no enabled skills).
+type Provider interface {
+	// ID returns a stable identifier used for deduplication and diagnostics.
+	ID() string
+	// Render returns the body to wrap in <system-reminder>; "" skips the
+	// reminder for this emission.
+	Render() string
+}
+
+// NewProvider returns a Provider with the given stable id whose body is
+// produced by render on every emission. Use this instead of declaring a
+// custom Provider type when you just need to wrap a closure.
+func NewProvider(id string, render func() string) Provider {
+	return providerFunc{id: id, render: render}
+}
+
+type providerFunc struct {
+	id     string
+	render func() string
+}
+
+func (p providerFunc) ID() string     { return p.id }
+func (p providerFunc) Render() string { return p.render() }
+
+// Service is the runtime API the harness uses to manage reminders.
+//
+// The service holds two pieces of state:
+//
+//   - providers: long-lived sources that re-emit on SessionStart and
+//     PostCompact (e.g. skills, memory).
+//   - pending: reminders queued for the next user message; each entry tracks
+//     which provider (if any) emitted it so EnqueueAllProviders can replace
+//     stale provider entries instead of duplicating them.
+//
+// All operations are safe for concurrent use.
+type Service struct {
+	mu        sync.Mutex
+	providers []Provider
+	pending   []pendingEntry
+}
+
+// pendingEntry pairs a wrapped <system-reminder> body with the ID of the
+// provider that produced it. providerID is empty for ad-hoc bodies queued
+// via Enqueue (e.g. hook context), so they always coexist with — and never
+// shadow — provider emissions.
+type pendingEntry struct {
+	providerID string // "" for ad-hoc Enqueue
+	wrapped    string // already wrapped in <system-reminder>
+}
+
+// NewService creates an empty reminder service.
+func NewService() *Service {
+	return &Service{}
+}
+
+// Register adds a Provider whose output is re-emitted on SessionStart and
+// PostCompact. Re-registering an existing ID replaces the old provider.
+func (s *Service) Register(p Provider) {
+	if p == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, existing := range s.providers {
+		if existing.ID() == p.ID() {
+			s.providers[i] = p
+			return
+		}
+	}
+	s.providers = append(s.providers, p)
+}
+
+// Unregister removes the provider with the given ID. Missing IDs are silently
+// ignored.
+func (s *Service) Unregister(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, existing := range s.providers {
+		if existing.ID() == id {
+			s.providers = append(s.providers[:i], s.providers[i+1:]...)
+			return
+		}
+	}
+}
+
+// Enqueue adds an ad-hoc reminder body to the pending queue. The body should
+// not include the <system-reminder> wrapper — this method adds it.
+//
+// Empty bodies are dropped silently. Ad-hoc entries persist independently of
+// EnqueueAllProviders — the latter only touches provider-emitted entries.
+func (s *Service) Enqueue(body string) {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return
+	}
+	wrapped := Wrap(body)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pending = append(s.pending, pendingEntry{wrapped: wrapped})
+}
+
+// EnqueueAllProviders renders every registered provider and queues the
+// non-empty bodies. Idempotent across repeated calls: any prior pending
+// entry from the same provider is dropped before re-emitting, so SessionStart
+// → PostCompact → /skills toggle in close succession produces a single
+// emission per provider rather than accumulating duplicates. Ad-hoc entries
+// queued via Enqueue are preserved.
+func (s *Service) EnqueueAllProviders() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(s.providers) == 0 {
+		return
+	}
+
+	knownIDs := make(map[string]struct{}, len(s.providers))
+	for _, p := range s.providers {
+		knownIDs[p.ID()] = struct{}{}
+	}
+	kept := s.pending[:0]
+	for _, e := range s.pending {
+		if _, isProvider := knownIDs[e.providerID]; e.providerID == "" || !isProvider {
+			kept = append(kept, e)
+		}
+	}
+	s.pending = kept
+
+	for _, p := range s.providers {
+		body := strings.TrimSpace(p.Render())
+		if body == "" {
+			continue
+		}
+		s.pending = append(s.pending, pendingEntry{providerID: p.ID(), wrapped: Wrap(body)})
+	}
+}
+
+// Drain returns all pending reminders (already wrapped) and clears the queue.
+func (s *Service) Drain() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.pending) == 0 {
+		return nil
+	}
+	out := make([]string, len(s.pending))
+	for i, e := range s.pending {
+		out[i] = e.wrapped
+	}
+	s.pending = nil
+	return out
+}
+
+// Empty reports whether there are no pending reminders.
+func (s *Service) Empty() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.pending) == 0
+}
+
+// Wrap returns body wrapped in <system-reminder>...</system-reminder>. Empty
+// body returns "".
+func Wrap(body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return ""
+	}
+	return "<system-reminder>\n" + body + "\n</system-reminder>"
+}
+
+// WrapMemory returns the canonical <memory scope="..."> envelope used by
+// both the main agent's reminder providers and the subagent's first-message
+// reminders. Empty body returns "".
+func WrapMemory(scope, body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return ""
+	}
+	return "<memory scope=\"" + scope + "\">\n" + body + "\n</memory>"
+}
+
+// AttachToContent appends pending reminders to user message content. A blank
+// line separates the original content from the first reminder, and adjacent
+// reminders are also separated by a blank line. If reminders is empty,
+// content is returned unchanged.
+func AttachToContent(content string, reminders []string) string {
+	if len(reminders) == 0 {
+		return content
+	}
+	var sb strings.Builder
+	sb.WriteString(content)
+	for _, r := range reminders {
+		if r == "" {
+			continue
+		}
+		if sb.Len() > 0 {
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString(r)
+	}
+	return sb.String()
+}

@@ -120,3 +120,7 @@ tmux capture-pane -t t_compact -p
 
 tmux kill-session -t t_compact
 ```
+
+## See Also
+
+- [Feature 23: Harness Channels & System-Reminder](23-harness-channels.md) — `PostCompact` calls `Reminder.EnqueueAllProviders`, so the user message right after compaction re-attaches `<system-reminder>` blocks for skills + memory. **Scenario 5** is a `DEV_DIR`-based manual verification.

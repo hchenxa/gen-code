@@ -120,29 +120,6 @@ NEVER do these without explicit user request:
 When staging, add files by name — avoid `git add -A` or `git add .` (risk of committing secrets or binaries).
 </guidelines>
 
-<memory scope="user">
-Always use tabs for indentation.
-Prefer short variable names.
-</memory>
-
-<memory scope="project">
-This is a Go project using Bubble Tea.
-Run tests with: go test ./...
-</memory>
-
-<skills>
-- git: Git workflow automation
-- review: Review a pull request
-- init: Initialize a new CLAUDE.md file
-</skills>
-
-<agents>
-- general-purpose: General multi-step agent
-  Tools: *
-- code-reviewer: Reviews code changes without mutating the workspace
-  Tools: Read, Glob, Grep
-</agents>
-
 <environment>
 date: YYYY-MM-DD
 cwd: /home/user/myproject
