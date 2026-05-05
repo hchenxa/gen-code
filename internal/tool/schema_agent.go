@@ -169,11 +169,11 @@ How to invoke:
 - Set ` + "`args`" + ` to pass optional arguments.
 
 Important:
-- Available skills are listed in <system-reminder> messages in this conversation; only invoke a skill that appears there or one the user explicitly typed as /<name>
-- When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task
-- NEVER mention a skill without actually calling this tool
-- Do not invoke a skill that is already running
-- Do not use this tool for built-in CLI commands (like /help, /clear, etc.)
+- Available skills are listed in <system-reminder> messages in the conversation; only invoke a skill that appears there.
+- When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task.
+- Do not invoke a skill that is already running.
+- Do not use this tool for built-in CLI commands (like /help, /clear, etc.).
+- If the current user message starts with a <command-name>...</command-name> tag, the skill body has ALREADY been inlined inside a <skill-invocation> block — follow those instructions directly instead of calling this tool again.
 `,
 	Parameters: map[string]any{
 		"type": "object",

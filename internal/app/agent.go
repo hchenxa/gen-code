@@ -107,7 +107,12 @@ func (m *model) buildAgentParams() agent.BuildParams {
 // Agent lifecycle (delegates to services.Agent)
 // ============================================================
 
-func (m *model) ensureAgentSession() (tea.Cmd, error) {
+// ensureAgentSession lazily starts the agent goroutine, preloading the
+// existing conversation. If pendingSend is non-empty and matches the
+// trailing user message in m.conv, it's dropped from the preload — the
+// caller is about to re-deliver it via sendToAgent and we'd otherwise see
+// the input twice. Pass "" when the caller hasn't yet appended the message.
+func (m *model) ensureAgentSession(pendingSend string) (tea.Cmd, error) {
 	if m.services.Agent.Active() {
 		return nil, nil
 	}
@@ -118,6 +123,12 @@ func (m *model) ensureAgentSession() (tea.Cmd, error) {
 	if len(m.conv.Messages) > 0 {
 		for _, msg := range m.conv.ConvertToProvider() {
 			coreMessages = append(coreMessages, msg)
+		}
+		if pendingSend != "" && len(coreMessages) > 0 {
+			last := coreMessages[len(coreMessages)-1]
+			if last.Role == core.RoleUser && last.Content == pendingSend {
+				coreMessages = coreMessages[:len(coreMessages)-1]
+			}
 		}
 	}
 

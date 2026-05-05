@@ -471,7 +471,7 @@ func (m *model) StartProviderTurn(content string) tea.Cmd {
 		return tea.Batch(m.CommitMessages()...)
 	}
 
-	startCmd, err := m.ensureAgentSession()
+	startCmd, err := m.ensureAgentSession(content)
 	if err != nil {
 		m.conv.Append(core.ChatMessage{
 			Role:    core.RoleNotice,
@@ -696,7 +696,7 @@ func (m *model) HandleSkillInvocation() tea.Cmd {
 		return tea.Batch(m.CommitMessages()...)
 	}
 
-	startCmd, err := m.ensureAgentSession()
+	startCmd, err := m.ensureAgentSession("")
 	if err != nil {
 		m.conv.AddNotice("Failed to start agent: " + err.Error())
 		m.userInput.Skill.ClearPending()

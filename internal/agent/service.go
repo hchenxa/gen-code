@@ -32,6 +32,11 @@ type Service interface {
 
 	// SetPendingPermission tracks a pending permission request for TUI approval.
 	SetPendingPermission(req *PermBridgeRequest)
+
+	// System returns the running agent's system prompt for hot-patching
+	// (e.g. swapping identity mid-session). Returns nil if no agent is
+	// active. Mutations are visible on the next inference call.
+	System() core.System
 }
 
 // Options holds dependencies for initialization.

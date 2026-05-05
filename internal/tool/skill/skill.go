@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/genai-io/gen-code/internal/core"
 	"github.com/genai-io/gen-code/internal/skill"
 	"github.com/genai-io/gen-code/internal/tool"
 	"github.com/genai-io/gen-code/internal/tool/perm"
@@ -123,6 +124,22 @@ func (t *SkillTool) execute(ctx context.Context, params map[string]any, cwd stri
 		return toolresult.NewErrorResult(t.Name(), fmt.Sprintf("skill is disabled: %s", sk.FullName()))
 	}
 
+	if alreadyInlined(ctx, sk.FullName()) {
+		duration := time.Since(start)
+		return toolresult.ToolResult{
+			Success: true,
+			Output: fmt.Sprintf("<skill-already-loaded name=%q>\nThis skill's body is already inlined in the current user message under <skill-invocation name=%q>. Follow those instructions directly.\n</skill-already-loaded>",
+				sk.FullName(), sk.FullName()),
+			Metadata: toolresult.ResultMetadata{
+				Title:    t.Name(),
+				Icon:     t.Icon(),
+				Subtitle: sk.FullName() + " (already inlined)",
+				Duration: duration,
+			},
+			SkillInfo: &toolresult.SkillResultInfo{SkillName: sk.FullName()},
+		}
+	}
+
 	// Load full instructions
 	instructions := sk.GetInstructions()
 	if instructions == "" {
@@ -183,6 +200,27 @@ func (t *SkillTool) execute(ctx context.Context, params map[string]any, cwd stri
 			RefCount:    refCount,
 		},
 	}
+}
+
+// alreadyInlined reports whether the most recent user message starts with
+// the <command-name> tag for this skill — meaning the slash-command path
+// already inlined the body and the tool call is redundant. Anchored at the
+// start so a quoted/pasted occurrence in later prose can't false-trigger.
+func alreadyInlined(ctx context.Context, fullName string) bool {
+	getter := tool.GetMessagesGetter(ctx)
+	if getter == nil {
+		return false
+	}
+	msgs := getter()
+	tag := "<command-name>" + fullName + "</command-name>"
+	for i := len(msgs) - 1; i >= 0; i-- {
+		m := msgs[i]
+		if m.Role != core.RoleUser {
+			continue
+		}
+		return strings.HasPrefix(strings.TrimSpace(m.Content), tag)
+	}
+	return false
 }
 
 func init() {

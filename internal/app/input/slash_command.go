@@ -188,7 +188,7 @@ func (c CommandController) executeExitCommand(cmdName string) (string, tea.Cmd, 
 
 func (c CommandController) executeSkillSlashCommand(sk *skill.Skill, args string) string {
 	if c.deps.Skill != nil {
-		c.deps.Input.Skill.PendingInstructions = c.deps.Skill.GetSkillInvocationPrompt(sk.FullName())
+		c.deps.Input.Skill.SetPending(sk.FullName(), c.deps.Skill.GetSkillInvocationPrompt(sk.FullName()))
 	}
 	if c.deps.Plugin != nil {
 		c.deps.Plugin.SetActivePluginRoot(c.deps.Plugin.FindPluginRootForPath(sk.SkillDir))
@@ -203,7 +203,7 @@ func (c CommandController) executeSkillSlashCommand(sk *skill.Skill, args string
 
 func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc skill.Service, pluginSvc plugin.Service) {
 	if skillSvc != nil {
-		state.Skill.PendingInstructions = skillSvc.GetSkillInvocationPrompt(sk.FullName())
+		state.Skill.SetPending(sk.FullName(), skillSvc.GetSkillInvocationPrompt(sk.FullName()))
 	}
 	if pluginSvc != nil {
 		pluginSvc.SetActivePluginRoot(pluginSvc.FindPluginRootForPath(sk.SkillDir))
@@ -217,7 +217,7 @@ func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc s
 
 func (c CommandController) executeCustomCommand(pc *command.CustomCommand, args string) string {
 	if instructions := pc.GetInstructions(); instructions != "" {
-		c.deps.Input.Skill.PendingInstructions = command.WrapInvocation(pc.FullName(), instructions)
+		c.deps.Input.Skill.SetPending(pc.FullName(), command.WrapInvocation(pc.FullName(), instructions))
 	}
 	if c.deps.Plugin != nil {
 		c.deps.Plugin.SetActivePluginRoot(c.deps.Plugin.FindPluginRootForPath(pc.FilePath))
@@ -360,7 +360,7 @@ func (c *CommandController) injectIdentityWorkflow(sub, args string) {
 	}
 	body = strings.ReplaceAll(body, "$ARGUMENTS", args)
 	name := "identity " + sub
-	c.deps.Input.Skill.PendingInstructions = command.WrapInvocation(name, body)
+	c.deps.Input.Skill.SetPending(name, command.WrapInvocation(name, body))
 	c.deps.Input.Skill.PendingArgs = formatSlashInvocation(name, args)
 }
 

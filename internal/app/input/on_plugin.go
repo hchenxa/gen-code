@@ -90,14 +90,16 @@ type pluginMarketplaceItem struct {
 type PluginSelector struct {
 	registry *coreplugin.Registry
 
-	active      bool
-	width       int
-	height      int
-	lastMessage string
-	isError     bool
-	maxVisible  int
-	isLoading   bool
-	loadingMsg  string
+	active         bool
+	width          int
+	height         int
+	lastMessage    string
+	isError        bool
+	maxVisible     int
+	isLoading      bool
+	loadingMsg     string
+	loadingFrame   int
+	loadingTicking bool
 
 	activeTab pluginTab
 
@@ -135,6 +137,13 @@ type PluginSelector struct {
 // Plugin messages
 type PluginEnableMsg struct{ PluginName string }
 type PluginDisableMsg struct{ PluginName string }
+
+type PluginToggleResultMsg struct {
+	PluginName string
+	Enable     bool
+	Success    bool
+	Error      error
+}
 
 type PluginInstallMsg struct {
 	PluginName  string
@@ -183,19 +192,26 @@ func (s *PluginSelector) IsActive() bool {
 func UpdatePlugin(deps OverlayDeps, state *PluginSelector, msg tea.Msg) (tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case PluginEnableMsg:
-		state.HandleEnable(msg.PluginName)
-		return nil, true
+		tick := state.beginLoading(fmt.Sprintf("Enabling %s...", msg.PluginName))
+		return tea.Batch(pluginToggleCmd(state.registry, msg.PluginName, true), tick), true
 
 	case PluginDisableMsg:
-		state.HandleDisable(msg.PluginName)
+		tick := state.beginLoading(fmt.Sprintf("Disabling %s...", msg.PluginName))
+		return tea.Batch(pluginToggleCmd(state.registry, msg.PluginName, false), tick), true
+
+	case PluginToggleResultMsg:
+		state.HandleToggleResult(msg)
 		return nil, true
 
 	case PluginUninstallMsg:
-		state.HandleUninstall(msg.PluginName)
+		uninstalled := state.HandleUninstall(msg.PluginName)
+		if uninstalled {
+			_ = deps.ReloadPluginState()
+		}
 		return nil, true
 
 	case PluginInstallMsg:
-		return pluginInstallCmd(state.registry, deps.Cwd, msg), true
+		return tea.Batch(pluginInstallCmd(state.registry, deps.Cwd, msg), state.startLoadingTick()), true
 
 	case PluginInstallResultMsg:
 		state.HandleInstallResult(msg)
@@ -211,8 +227,55 @@ func UpdatePlugin(deps OverlayDeps, state *PluginSelector, msg tea.Msg) (tea.Cmd
 	case PluginMarketplaceSyncResultMsg:
 		state.HandleMarketplaceSync(msg)
 		return nil, true
+
+	case pluginLoadingTickMsg:
+		if !state.isLoading {
+			state.loadingTicking = false
+			return nil, true
+		}
+		state.loadingFrame++
+		return pluginLoadingTick(), true
 	}
 	return nil, false
+}
+
+type pluginLoadingTickMsg struct{}
+
+func pluginLoadingTick() tea.Cmd {
+	return tea.Tick(80*time.Millisecond, func(time.Time) tea.Msg {
+		return pluginLoadingTickMsg{}
+	})
+}
+
+// beginLoading marks the selector as loading with msg and returns a tick
+// cmd to drive the spinner — or nil if a tick is already in flight, so
+// overlapping loading actions don't double the spinner cadence.
+func (s *PluginSelector) beginLoading(msg string) tea.Cmd {
+	s.isLoading = true
+	s.loadingMsg = msg
+	return s.startLoadingTick()
+}
+
+// startLoadingTick returns a tick cmd only if no tick is already in flight.
+func (s *PluginSelector) startLoadingTick() tea.Cmd {
+	if s.loadingTicking {
+		return nil
+	}
+	s.loadingTicking = true
+	return pluginLoadingTick()
+}
+
+// pluginToggleCmd enables or disables a plugin in the user scope.
+func pluginToggleCmd(reg *coreplugin.Registry, name string, enable bool) tea.Cmd {
+	return func() tea.Msg {
+		var err error
+		if enable {
+			err = reg.Enable(name, coreplugin.ScopeUser)
+		} else {
+			err = reg.Disable(name, coreplugin.ScopeUser)
+		}
+		return PluginToggleResultMsg{PluginName: name, Enable: enable, Success: err == nil, Error: err}
+	}
 }
 
 // pluginInstallCmd creates a tea.Cmd that installs the requested plugin.
@@ -818,35 +881,38 @@ func (s *PluginSelector) toggleSelectedPlugin() tea.Cmd {
 	return nil
 }
 
-// HandleEnable handles enabling a plugin.
-func (s *PluginSelector) HandleEnable(name string) {
-	if err := s.registry.Enable(name, coreplugin.ScopeUser); err != nil {
-		s.setError(fmt.Sprintf("Failed to enable: %v", err))
+// HandleToggleResult handles plugin enable/disable results.
+func (s *PluginSelector) HandleToggleResult(msg PluginToggleResultMsg) {
+	s.isLoading = false
+	s.loadingMsg = ""
+	if msg.Success {
+		past := "Disabled"
+		if msg.Enable {
+			past = "Enabled"
+		}
+		s.setSuccess(fmt.Sprintf("%s %s", past, msg.PluginName))
 	} else {
-		s.setSuccess(fmt.Sprintf("Enabled %s", name))
+		action := "disable"
+		if msg.Enable {
+			action = "enable"
+		}
+		s.setError(fmt.Sprintf("Failed to %s: %v", action, msg.Error))
 	}
 	s.refreshAndUpdateView()
 }
 
-// HandleDisable handles disabling a plugin.
-func (s *PluginSelector) HandleDisable(name string) {
-	if err := s.registry.Disable(name, coreplugin.ScopeUser); err != nil {
-		s.setError(fmt.Sprintf("Failed to disable: %v", err))
-	} else {
-		s.setSuccess(fmt.Sprintf("Disabled %s", name))
-	}
-	s.refreshAndUpdateView()
-}
-
-// HandleUninstall handles uninstalling a plugin.
-func (s *PluginSelector) HandleUninstall(name string) {
+// HandleUninstall removes a plugin and reports whether the on-disk state
+// changed (so the caller can trigger a registry reload).
+func (s *PluginSelector) HandleUninstall(name string) bool {
 	if err := s.installer.Uninstall(name, coreplugin.ScopeUser); err != nil {
 		s.setError(fmt.Sprintf("Failed to uninstall: %v", err))
-	} else {
-		s.setSuccess(fmt.Sprintf("Uninstalled %s", name))
-		s.goBack()
+		s.refreshAndUpdateView()
+		return false
 	}
+	s.setSuccess(fmt.Sprintf("Uninstalled %s", name))
+	s.goBack()
 	s.refreshAndUpdateView()
+	return true
 }
 
 // HandleInstallResult handles the result of plugin installation.
@@ -1242,6 +1308,8 @@ func (s *PluginSelector) resetInputState() {
 func (s *PluginSelector) resetLoadingState() {
 	s.isLoading = false
 	s.loadingMsg = ""
+	s.loadingFrame = 0
+	s.loadingTicking = false
 }
 
 // Cancel cancels the selector and clears transient UI state.

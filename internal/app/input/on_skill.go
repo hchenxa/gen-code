@@ -62,31 +62,41 @@ type SkillState struct {
 	Selector            SkillSelector
 	PendingInstructions string
 	PendingArgs         string
+	PendingFullName     string
 }
 
 // ConsumeInvocation extracts the pending skill invocation and clears pending
-// state. Returns (displayMsg, fullMsg): displayMsg is shown in chat UI,
-// fullMsg embeds the skill instructions and is sent to the LLM as the user
-// message — the conversation history is the single source of truth for the
-// skill body, so the LLM (and any session resume) can refer back to it.
+// state. Returns (displayMsg, fullMsg): displayMsg is shown in chat UI;
+// fullMsg embeds the skill instructions, wrapped with a <command-name> tag
+// so the Skill tool can detect and skip a redundant call.
 func (s *SkillState) ConsumeInvocation() (displayMsg, fullMsg string) {
 	displayMsg = s.PendingArgs
 	if displayMsg == "" {
 		displayMsg = "Execute the skill."
 	}
 	fullMsg = displayMsg
-	if s.PendingInstructions != "" {
-		fullMsg = s.PendingInstructions + "\n\n" + displayMsg
-		s.PendingInstructions = ""
+	if s.PendingInstructions != "" && s.PendingFullName != "" {
+		fullMsg = "<command-name>" + s.PendingFullName + "</command-name>\n\n" +
+			s.PendingInstructions + "\n\n" + displayMsg
 	}
+	s.PendingInstructions = ""
 	s.PendingArgs = ""
+	s.PendingFullName = ""
 	return displayMsg, fullMsg
+}
+
+// SetPending stages a slash-command invocation. Caller may set PendingArgs
+// separately; this helper covers the always-paired name+instructions fields.
+func (s *SkillState) SetPending(fullName, instructions string) {
+	s.PendingFullName = fullName
+	s.PendingInstructions = instructions
 }
 
 // ClearPending resets pending skill state without activating.
 func (s *SkillState) ClearPending() {
 	s.PendingInstructions = ""
 	s.PendingArgs = ""
+	s.PendingFullName = ""
 }
 
 func NewSkillSelector(reg *coreskill.Registry) SkillSelector {

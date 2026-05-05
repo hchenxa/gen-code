@@ -107,3 +107,12 @@ func (s *service) SetPendingPermission(req *PermBridgeRequest) {
 	s.pendingPermRequest = req
 	s.mu.Unlock()
 }
+
+func (s *service) System() core.System {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.agent == nil {
+		return nil
+	}
+	return s.agent.System()
+}

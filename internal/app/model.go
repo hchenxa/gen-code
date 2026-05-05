@@ -24,6 +24,7 @@ import (
 	"github.com/genai-io/gen-code/internal/app/trigger"
 	"github.com/genai-io/gen-code/internal/command"
 	"github.com/genai-io/gen-code/internal/core"
+	"github.com/genai-io/gen-code/internal/core/system"
 	"github.com/genai-io/gen-code/internal/filecache"
 	"github.com/genai-io/gen-code/internal/hook"
 	"github.com/genai-io/gen-code/internal/identity"
@@ -182,6 +183,12 @@ func (m *model) ReloadPluginBackedState() error {
 	}
 	m.syncSettingsToHookEngine()
 	m.ReconfigureAgentTool()
+
+	// Refresh skills/memory reminders so the LLM sees the updated skill set
+	// in the next user message instead of waiting for SessionStart/PostCompact.
+	if m.services.Reminder != nil {
+		m.services.Reminder.EnqueueAllProviders()
+	}
 
 	return nil
 }
@@ -984,14 +991,27 @@ func (m *model) promptSuggestionDeps() input.PromptSuggestionDeps {
 	}
 }
 
-// setActiveIdentity persists the user's identity choice and rebuilds the
-// agent so the new persona takes effect. Empty name = revert to built-in.
+// setActiveIdentity persists the user's identity choice and applies it
+// without restarting the session: the running main agent's identity slot
+// is hot-patched in place (visible on its next inference), and the
+// subagent executor is rebuilt so future Agent tool calls inherit the new
+// persona. Empty name = revert to built-in default.
 func (m *model) setActiveIdentity(name string) error {
+	if m.services.Setting != nil {
+		if snap := m.services.Setting.Snapshot(); snap != nil && snap.Identity == name {
+			return nil
+		}
+	}
 	if err := setting.SaveIdentity(name); err != nil {
 		return err
 	}
 	if m.services.Setting != nil {
 		_ = m.services.Setting.Reload(m.env.CWD)
+	}
+	if m.services.Agent != nil {
+		if sys := m.services.Agent.System(); sys != nil {
+			system.SwapIdentity(sys, m.activeIdentityBody())
+		}
 	}
 	m.ReconfigureAgentTool()
 	return nil

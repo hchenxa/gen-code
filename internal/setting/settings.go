@@ -278,6 +278,7 @@ func (s *Settings) Clone() *Settings {
 	dst.Model = s.Model
 	dst.Theme = s.Theme
 	dst.SearchProvider = s.SearchProvider
+	dst.Identity = s.Identity
 	if s.AllowBypass != nil {
 		v := *s.AllowBypass
 		dst.AllowBypass = &v

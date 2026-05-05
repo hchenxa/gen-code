@@ -683,10 +683,13 @@ func (s *PluginSelector) renderActions(sb *strings.Builder) {
 
 // ── Footer ────────────────────────────────────────────────────────────────
 
+var pluginSpinnerFrames = [4]string{"◐", "◓", "◑", "◒"}
+
 func (s *PluginSelector) renderFooter(sb *strings.Builder, hint string) {
 	if s.isLoading {
 		spinnerStyle := lipgloss.NewStyle().Foreground(kit.CurrentTheme.Accent)
-		sb.WriteString(spinnerStyle.Render("  ◐ " + s.loadingMsg))
+		frame := pluginSpinnerFrames[s.loadingFrame%len(pluginSpinnerFrames)]
+		sb.WriteString(spinnerStyle.Render("  " + frame + " " + s.loadingMsg))
 		sb.WriteString("\n")
 	} else if s.lastMessage != "" {
 		if s.isError {

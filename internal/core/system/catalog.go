@@ -139,10 +139,26 @@ func WithIdentity(text string) Option {
 		if text == "" {
 			return
 		}
-		sys.Use(core.Section{
-			Slot: core.SlotIdentity, Name: "identity", Source: core.FromFile,
-			Render: func() string { return text },
-		})
+		sys.Use(identitySection(text))
+	}
+}
+
+// SwapIdentity replaces the identity slot on an already-built system.
+// Empty text reverts to the built-in default. Visible on the next sys.Prompt().
+func SwapIdentity(sys core.System, text string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		sys.Use(defaultIdentity())
+		return
+	}
+	sys.Use(identitySection(text))
+}
+
+// identitySection builds the slot-0 identity Section for a user-defined persona.
+func identitySection(text string) core.Section {
+	return core.Section{
+		Slot: core.SlotIdentity, Name: "identity", Source: core.FromFile,
+		Render: func() string { return text },
 	}
 }
 
