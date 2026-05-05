@@ -197,20 +197,6 @@ func toolResultIcon(isError bool) string {
 	return "⎿"
 }
 
-// tokenUsageColorAndHint returns the color and hint text for token usage percentage.
-func tokenUsageColorAndHint(percent float64) (lipgloss.TerminalColor, string) {
-	if percent >= autoCompactThreshold {
-		return kit.CurrentTheme.Error, " ⚠ auto-compact"
-	}
-	if percent >= 85 {
-		return kit.CurrentTheme.Warning, fmt.Sprintf(" (compact at %d%%)", autoCompactThreshold)
-	}
-	if percent >= 70 {
-		return kit.CurrentTheme.Accent, ""
-	}
-	return kit.CurrentTheme.Muted, ""
-}
-
 // RenderTokenWarning returns a warning line when context usage is high.
 // Displayed above the input separator to alert the user.
 func RenderTokenWarning(inputTokens, inputLimit int, compactSuppressed bool) string {
@@ -358,7 +344,7 @@ func RenderAssistantMessage(params AssistantParams) string {
 		wrapWidth := max(params.Width-2, minWrapWidth)
 		wrapped := lipgloss.NewStyle().Width(wrapWidth).Render(params.Thinking)
 		var lines []string
-		for _, line := range strings.Split(wrapped, "\n") {
+		for line := range strings.SplitSeq(wrapped, "\n") {
 			if strings.TrimSpace(line) != "" {
 				if lines == nil {
 					lines = make([]string, 0, 8)

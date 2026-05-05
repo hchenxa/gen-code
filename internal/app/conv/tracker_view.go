@@ -77,10 +77,7 @@ func RenderTrackerList(params TrackerListParams) string {
 func renderTask(t *tracker.Task, width, idWidth int, blockers func(string) []string) string {
 	indent := "  "
 	idTag := fmt.Sprintf("%-*s", idWidth, "#"+t.ID)
-	maxTextLen := width - len(indent) - idWidth - 8
-	if maxTextLen < 12 {
-		maxTextLen = 12
-	}
+	maxTextLen := max(width-len(indent)-idWidth-8, 12)
 	subject := kit.TruncateText(t.Subject, maxTextLen)
 	mutedStyle := lipgloss.NewStyle().Foreground(kit.CurrentTheme.Muted)
 	statusDetail := kit.MapString(t.Metadata, "background_status_detail")
@@ -157,28 +154,6 @@ func countTaskStatuses(tasks []*tracker.Task) taskStatusCounts {
 		}
 	}
 	return counts
-}
-
-func renderTaskStatusSummary(counts taskStatusCounts) string {
-	parts := make([]string, 0, 4)
-	successStyle := lipgloss.NewStyle().Foreground(kit.CurrentTheme.Success).Bold(true)
-	activeStyle := lipgloss.NewStyle().Foreground(kit.CurrentTheme.Primary).Bold(true)
-	pendingStyle := lipgloss.NewStyle().Foreground(kit.CurrentTheme.Muted)
-	failedStyle := lipgloss.NewStyle().Foreground(kit.CurrentTheme.Error).Bold(true)
-
-	if counts.done > 0 {
-		parts = append(parts, successStyle.Render(fmt.Sprintf("● %d done", counts.done)))
-	}
-	if counts.active > 0 {
-		parts = append(parts, activeStyle.Render(fmt.Sprintf("● %d active", counts.active)))
-	}
-	if counts.todo > 0 {
-		parts = append(parts, pendingStyle.Render(fmt.Sprintf("○ %d todo", counts.todo)))
-	}
-	if counts.failed > 0 {
-		parts = append(parts, failedStyle.Render(fmt.Sprintf("! %d failed", counts.failed)))
-	}
-	return strings.Join(parts, "  ")
 }
 
 func taskIDWidth(tasks []*tracker.Task) int {
