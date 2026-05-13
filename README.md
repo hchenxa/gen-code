@@ -9,7 +9,7 @@
   </p>
 </div>
 
-Gen Code is a terminal coding assistant with interchangeable LLM providers, assistant personas, and search engines. Existing [Claude Code](https://claude.ai/code) skills, plugins, and project instructions work unchanged. Implemented in Go as a single binary with concurrent multi-agent orchestration.
+Gen Code is a terminal coding assistant with pluggable LLM providers, search engines, personas, and skill/extension surfaces — fully compatible with [Claude Code](https://claude.ai/code) skills, plugins, and MCP servers. Implemented in Go as a single binary with concurrent multi-agent orchestration.
 
 ## Features
 
@@ -78,11 +78,12 @@ Run `/model` on first launch to connect a provider; `/help` lists all slash comm
 
 Keyboard: `Shift+Tab` permission mode · `Ctrl+O` expand tool details · `Ctrl+C` cancel · `Ctrl+D` exit.
 
-## Configuration
+### Configuration
 
 Config lives in `~/.gen/` (user) and `<project>/.gen/` (project, overrides user). A `GEN.md` or `CLAUDE.md` at the project root is auto-loaded into the system prompt.
 
-### Credentials
+<details>
+<summary><b>Credentials</b></summary>
 
 | Service | Variable |
 |:--------|:---------|
@@ -97,6 +98,8 @@ Config lives in `~/.gen/` (user) and `<project>/.gen/` (project, overrides user)
 | **Tavily** search | `TAVILY_API_KEY` |
 | **Brave** search | `BRAVE_API_KEY` |
 | **Serper** search | `SERPER_API_KEY` |
+
+</details>
 
 <details>
 <summary><b>Directory layout</b></summary>
