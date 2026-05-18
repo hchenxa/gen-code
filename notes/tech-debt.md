@@ -47,16 +47,20 @@ This file tracks structural follow-ups that are not tied to a single feature.
 - `internal/agent/` has no package-local test file; coverage is
   end-to-end only.
 
-### Documentation gaps
+### Documentation gaps (resolved 2026-05-18 in the docs/restructure branch)
 
-- `docs/guides/` only contains `explore-mode.md`. Write at least:
-  `writing-a-skill.md`, `writing-a-plugin.md`, `writing-a-subagent.md`,
-  `getting-started.md`. Referenced as a directory from `docs/architecture.md`
-  but the directory has near-zero content.
-- `docs/design/decisions/` is empty. Write at least
-  `0001-layered-package-architecture.md` to record the PR-1/PR-2
-  restructure decision now while context is fresh.
-- Infrastructure packages (`log`, `secret`, `filecache`, `markdown`) have
-  no `docs/packages/*.md` page. Flagged as "Coming Soon" in
-  `docs/packages/index.md`; surfaces are tiny so 30-line pages would
-  suffice.
+- ~~`docs/guides/` only contains `explore-mode.md`.~~ Added
+  `getting-started.md`, `writing-a-skill.md`, `writing-a-subagent.md`,
+  `writing-a-plugin.md`.
+- ~~`docs/design/decisions/` is empty.~~ Added
+  `0001-layered-package-architecture.md`.
+- ~~Infrastructure packages (`log`, `secret`, `filecache`, `markdown`)
+  have no `docs/packages/*.md` page.~~ Added all four.
+
+### Remaining documentation work
+
+- `docs/packages/ui.md` Contract section is complete but the
+  per-subpackage tour (`input/`, `conv/`, `hub/`, `trigger/`, `kit/`)
+  is still squeezed into one page. Could split into
+  `packages/ui/<sub>.md` once any single subpackage grows enough to
+  warrant it.
