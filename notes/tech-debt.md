@@ -11,10 +11,10 @@ This file tracks structural follow-ups that are not tied to a single feature.
 ### Code refactors flagged by `docs/packages/*/Known Violations`
 
 - **God `Service` interfaces.** Split per the per-package suggestions:
-  `plugin` (21), `setting` (14), `agent` (11), `cron` (10),
-  `command` (7), `llm` (8), `task` (8), `tool` (6).
-  Define narrow consumer-defined interfaces alongside the concrete
-  `*service` / `*Registry`; let each call site narrow to what it needs.
+  `setting` (14), `agent` (11), `cron` (10), `command` (7),
+  `llm` (8), `task` (8), `tool` (6). Define narrow consumer-defined
+  interfaces alongside the concrete `*service` / `*Registry`; let each
+  call site narrow to what it needs.
   ~~`mcp` (9 methods)~~ — resolved (`Tools` + `Servers` + `*mcp.Registry`).
   ~~`hook` (16 methods)~~ — resolved (`Handler` + `*hook.Engine`).
   ~~`session` (11 methods)~~ — resolved by deleting `Service`, exposing
@@ -25,6 +25,10 @@ This file tracks structural follow-ups that are not tied to a single feature.
   reason as session.
   ~~`skill` (11 methods)~~ — resolved by deleting `Service`, exposing
   `*skill.Registry` directly. No role interface — same reason.
+  ~~`plugin` (21 methods)~~ — resolved by deleting `Service`, exposing
+  `*plugin.Registry` directly + the existing package-level free
+  functions (`GetPlugin*Paths`, `SetActivePluginRoot`, etc.) that the
+  Service methods just wrapped.
 - **Escape-hatch methods on Service interfaces.** All resolved:
   ~~`MCP.Registry()`~~, ~~`Hook.Engine()`~~, ~~`Session.GetStore()`~~
   / ~~`Session.SetStore()`~~ — Service interfaces deleted in their

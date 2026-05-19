@@ -19,6 +19,7 @@ import (
 	"github.com/genai-io/gen-code/internal/image"
 	"github.com/genai-io/gen-code/internal/llm"
 	"github.com/genai-io/gen-code/internal/mcp"
+	"github.com/genai-io/gen-code/internal/plugin"
 	"go.uber.org/zap"
 
 	"github.com/genai-io/gen-code/internal/log"
@@ -459,7 +460,7 @@ func (m *model) submitDeps() input.SubmitDeps {
 			ctrl := input.NewCommandController(m.commandDeps())
 			return ctrl.HandleSubmit(text)
 		},
-		ClearPluginRoot: m.services.Plugin.ClearActivePluginRoot,
+		ClearPluginRoot: plugin.ClearActivePluginRoot,
 	}
 }
 

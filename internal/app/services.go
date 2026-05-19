@@ -35,7 +35,7 @@ type services struct {
 	Tracker  tracker.Service
 	Cron     cron.Service
 	MCP      *mcp.Registry
-	Plugin   plugin.Service
+	Plugin   *plugin.Registry
 	Agent    agent.Service
 	Identity *identity.Registry
 	Reminder *reminder.Service

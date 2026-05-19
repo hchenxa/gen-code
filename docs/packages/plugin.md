@@ -22,73 +22,62 @@ contributes without importing `plugin` directly.
 
 ## Contract
 
+The package exposes `*Registry` directly plus package-level free
+functions for the cross-domain integration surface. No producer-side
+interface — each downstream consumer (skill / subagent / command / mcp
+/ setting) pulls a different small set of free functions, so a unified
+interface would just collect unrelated methods.
+
 ```go
 package plugin
 
-// Service is the public contract for the plugin module.
-type Service interface {
-    // loading
-    Load(ctx context.Context, cwd string) error
-    LoadClaudePlugins(ctx context.Context) error
-    LoadFromPath(ctx context.Context, path string) error
+// Registry is the opaque handle to the loaded plugin set plus per-scope
+// enabled state. Type exported, fields unexported.
+type Registry struct { /* internal fields */ }
 
-    // query
-    List() []*Plugin
-    Get(name string) (*Plugin, bool)
-    GetEnabled() []*Plugin
-    Count() int
-    EnabledCount() int
+// Loading
+func (r *Registry) Load(ctx context.Context, cwd string) error
+func (r *Registry) LoadFromPath(ctx context.Context, path string) error
+func (r *Registry) LoadClaudePlugins(ctx context.Context) error
 
-    // mutation
-    Enable(name string, scope Scope) error
-    Disable(name string, scope Scope) error
+// Query
+func (r *Registry) Get(name string) (*Plugin, bool)
+func (r *Registry) List() []*Plugin
+func (r *Registry) GetEnabled() []*Plugin
+func (r *Registry) Count() int
+func (r *Registry) EnabledCount() int
+func (r *Registry) GetByScope(scope Scope) []*Plugin
 
-    // installer
-    NewInstaller(cwd string) *Installer
+// Mutation
+func (r *Registry) Enable(name string, scope Scope) error
+func (r *Registry) Disable(name string, scope Scope) error
+func (r *Registry) Register(p *Plugin)
+func (r *Registry) Unregister(name string)
 
-    // access
-    Registry() *Registry
+// Installer construction (package-level free function)
+func NewInstaller(reg *Registry, cwd string) *Installer
 
-    // plugin root management
-    SetActivePluginRoot(path string)
-    ClearActivePluginRoot()
-    FindPluginRootForPath(path string) string
+// Cross-domain integration (package-level free functions; read from
+// the package-level default registry). Each consumer that needs
+// plugin-contributed data imports plugin and calls one of these:
+func GetPluginAgentPaths() []PluginPath
+func GetPluginSkillPaths() []PluginPath
+func GetPluginCommandPaths() []PluginPath
+func GetPluginMCPServers() []PluginMCPServer
+func GetPluginHooks() map[string][]setting.Hook
+func PluginEnv() []string
 
-    // cross-domain (consumed by other services at init)
-    AgentPaths() []PluginPath
-    SkillPaths() []PluginPath
-    CommandPaths() []PluginPath
-    MCPServers() []PluginMCPServer
-    PluginHooks() map[string][]setting.Hook
-    PluginEnv() []string
-}
+// Plugin root tracking (process-global state; package-level functions)
+func SetActivePluginRoot(path string)
+func ClearActivePluginRoot()
+func FindPluginRootForPath(path string) string
+
+// Package-level access
+func Initialize(ctx context.Context, opts Options) error
+func Default() *Registry
+func SetDefaultRegistry(r *Registry)  // test-only
+func ResetDefaultRegistry()           // test-only
 ```
-
-### Known Violations
-
-- **Rule 1 (small).** 21 methods — second worst after `hook`. Concerns
-  span loading, querying, mutating, installing, registry-access, plugin
-  root management, and six cross-domain accessor methods. Suggested
-  split:
-  - `PluginLoader` → `Load`, `LoadClaudePlugins`, `LoadFromPath`
-  - `PluginRegistry` → `List`, `Get`, `GetEnabled`, `Count`,
-    `EnabledCount`
-  - `PluginStateStore` → `Enable`, `Disable`
-  - `PluginInstallerFactory` → `NewInstaller`
-  - `PluginContributions` → the six `AgentPaths`/`SkillPaths`/… methods
-- **Rule 7 (escape hatches).** `Registry() *Registry` and
-  `SetActivePluginRoot` / `ClearActivePluginRoot` /
-  `FindPluginRootForPath` (package-level state) both leak. The latter
-  three are package-level globals dressed up as methods; move into the
-  registry value.
-- **Rule 5.** `Default()` returns `Service`.
-- **Cross-domain coupling.** Each `*Paths()` method exists so that
-  `command`/`skill`/`subagent`/`mcp` can consume plugin contributions
-  without importing `plugin`. The right pattern is reverse-injection:
-  on `Initialize`, `plugin` *pushes* its contributions into each
-  consumer rather than each consumer *pulling* from `plugin`. Today's
-  init order (callbacks passed in `Options{PluginAgentPaths: ...}`) is
-  already half of this; finish it.
 
 ## Internals
 

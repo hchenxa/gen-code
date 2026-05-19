@@ -207,8 +207,8 @@ func TestRenderInstalledDetailShowsStructuredSections(t *testing.T) {
 
 func TestHandlePluginCommandMarketplaceAddListRemove(t *testing.T) {
 	reg := coreplugin.NewRegistry()
-	coreplugin.SetDefault(coreplugin.WrapRegistry(reg))
-	t.Cleanup(coreplugin.ResetService)
+	coreplugin.SetDefaultRegistry(reg)
+	t.Cleanup(coreplugin.ResetDefaultRegistry)
 
 	tmpHome := t.TempDir()
 	tmpDir := t.TempDir()
@@ -247,8 +247,8 @@ func TestHandlePluginCommandMarketplaceAddListRemove(t *testing.T) {
 
 func TestHandlePluginCommandInstallFromMarketplace(t *testing.T) {
 	reg := coreplugin.NewRegistry()
-	coreplugin.SetDefault(coreplugin.WrapRegistry(reg))
-	t.Cleanup(coreplugin.ResetService)
+	coreplugin.SetDefaultRegistry(reg)
+	t.Cleanup(coreplugin.ResetDefaultRegistry)
 
 	tmpHome := t.TempDir()
 	tmpDir := t.TempDir()

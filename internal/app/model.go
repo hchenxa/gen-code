@@ -120,7 +120,7 @@ func newBaseModel() model {
 			AgentRegistry:    &agentRegistryAdapter{svc.Subagent},
 			SkillRegistry:    svc.Skill,
 			MCPRegistry:      svc.MCP,
-			PluginRegistry:   svc.Plugin.Registry(),
+			PluginRegistry:   svc.Plugin,
 			IdentityRegistry: svc.Identity,
 			Setting:          svc.Setting,
 			LoadDisabled:     svc.Setting.GetDisabledToolsAt,

@@ -44,7 +44,7 @@ type CommandDeps struct {
 
 	// Domain services
 	Skill   *skill.Registry
-	Plugin  plugin.Service
+	Plugin  *plugin.Registry
 	MCP     *mcp.Registry
 	Tracker tracker.Service
 	Cron    cron.Service
@@ -191,7 +191,7 @@ func (c CommandController) executeSkillSlashCommand(sk *skill.Skill, args string
 		c.deps.Input.Skill.SetPending(sk.FullName(), c.deps.Skill.GetSkillInvocationPrompt(sk.FullName()))
 	}
 	if c.deps.Plugin != nil {
-		c.deps.Plugin.SetActivePluginRoot(c.deps.Plugin.FindPluginRootForPath(sk.SkillDir))
+		plugin.SetActivePluginRoot(plugin.FindPluginRootForPath(sk.SkillDir))
 	}
 	if args != "" {
 		c.deps.Input.Skill.PendingArgs = fmt.Sprintf("/%s %s", sk.FullName(), args)
@@ -201,12 +201,12 @@ func (c CommandController) executeSkillSlashCommand(sk *skill.Skill, args string
 	return ""
 }
 
-func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc *skill.Registry, pluginSvc plugin.Service) {
+func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc *skill.Registry, pluginSvc *plugin.Registry) {
 	if skillSvc != nil {
 		state.Skill.SetPending(sk.FullName(), skillSvc.GetSkillInvocationPrompt(sk.FullName()))
 	}
 	if pluginSvc != nil {
-		pluginSvc.SetActivePluginRoot(pluginSvc.FindPluginRootForPath(sk.SkillDir))
+		plugin.SetActivePluginRoot(plugin.FindPluginRootForPath(sk.SkillDir))
 	}
 	if args != "" {
 		state.Skill.PendingArgs = fmt.Sprintf("/%s %s", sk.FullName(), args)
@@ -220,7 +220,7 @@ func (c CommandController) executeCustomCommand(pc *command.CustomCommand, args 
 		c.deps.Input.Skill.SetPending(pc.FullName(), command.WrapInvocation(pc.FullName(), instructions))
 	}
 	if c.deps.Plugin != nil {
-		c.deps.Plugin.SetActivePluginRoot(c.deps.Plugin.FindPluginRootForPath(pc.FilePath))
+		plugin.SetActivePluginRoot(plugin.FindPluginRootForPath(pc.FilePath))
 	}
 	c.deps.Input.Skill.PendingArgs = formatSlashInvocation(pc.FullName(), args)
 	return ""

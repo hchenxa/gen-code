@@ -159,7 +159,7 @@ Examples:
 			return err
 		}
 
-		installer := plugin.Default().NewInstaller(cwd)
+		installer := plugin.NewInstaller(plugin.Default(), cwd)
 		_ = installer.LoadMarketplaces() // Non-fatal, continue with empty marketplaces
 
 		scope := parsePluginScope(pluginScope)
@@ -185,7 +185,7 @@ var pluginUninstallCmd = &cobra.Command{
 			return err
 		}
 
-		installer := plugin.Default().NewInstaller(cwd)
+		installer := plugin.NewInstaller(plugin.Default(), cwd)
 		scope := parsePluginScope(pluginScope)
 
 		if err := installer.Uninstall(name, scope); err != nil {
