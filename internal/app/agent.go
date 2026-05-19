@@ -69,7 +69,7 @@ func (m *model) buildAgentParams() agent.BuildParams {
 	if rec != nil {
 		onEvent = rec.OnAgentEvent
 		if m.services.Hook != nil {
-			if eng := m.services.Hook.Engine(); eng != nil {
+			if eng := m.services.Hook; eng != nil {
 				eng.SetAuditCallback(func(a hook.HookFiredAudit) {
 					rec.RecordHook(transcript.HookRecord{
 						Event:     a.Event,
@@ -365,7 +365,7 @@ func (m *model) ReconfigureAgentTool() {
 
 	var hookEngine *hook.Engine
 	if m.services.Hook != nil {
-		hookEngine = m.services.Hook.Engine()
+		hookEngine = m.services.Hook
 	}
 	executor := subagent.NewExecutor(m.env.LLMProvider, m.env.CWD, m.env.GetModelID(), hookEngine)
 	if m.services.Session.GetStore() != nil && m.services.Session.ID() != "" {

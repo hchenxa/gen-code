@@ -3,7 +3,7 @@ package mcp
 import "github.com/genai-io/gen-code/internal/hook"
 
 func fireConfigChanged(source, filePath string) {
-	if h := hook.DefaultIfInit(); h != nil {
+	if h := hook.DefaultEngine(); h != nil {
 		h.ExecuteAsync(hook.ConfigChange, hook.HookInput{
 			Source:   source,
 			FilePath: filePath,

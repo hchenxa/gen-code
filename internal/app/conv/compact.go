@@ -169,7 +169,7 @@ type CompactRequest struct {
 	Client     *llm.Client
 	Messages   []core.Message
 	Focus      string
-	HookEngine *hook.Engine
+	HookEngine hook.Handler
 	Trigger    string
 }
 

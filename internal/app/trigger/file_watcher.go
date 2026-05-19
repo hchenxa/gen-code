@@ -13,7 +13,7 @@ import (
 const DefaultFileWatcherInterval = 500 * time.Millisecond
 
 type FileWatcher struct {
-	engine    *hook.Engine
+	engine    hook.Handler
 	onOutcome func(hook.HookOutcome)
 	interval  time.Duration
 
@@ -30,7 +30,7 @@ type fileSnapshot struct {
 	modTime time.Time
 }
 
-func NewFileWatcher(engine *hook.Engine, onOutcome func(hook.HookOutcome)) *FileWatcher {
+func NewFileWatcher(engine hook.Handler, onOutcome func(hook.HookOutcome)) *FileWatcher {
 	return &FileWatcher{
 		engine:    engine,
 		onOutcome: onOutcome,

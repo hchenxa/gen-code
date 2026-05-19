@@ -1,51 +1,49 @@
+// Package hook executes user-defined hooks at named application events
+// (PreToolUse, Stop, SessionStart, PermissionRequest, …) and merges
+// their structured outcomes back into the calling code path.
+//
+// The package exposes one role interface plus the concrete engine:
+//
+//   - Handler — fire hooks for an application event, query whether any
+//     are configured. Implemented by *Engine. Consumers: agent loop,
+//     slash command approvals, compaction, file watcher, worktree /
+//     plugin / mcp / subagent. Each takes Handler instead of *Engine
+//     to express that it only fires events, never configures the
+//     engine. Modeled on http.Handler — same fire-and-return shape.
+//   - *Engine — the only implementation. Carries the additional Set*
+//     and ClearSessionHooks methods used by the app composition root
+//     to wire callbacks and reload context, plus CurrentStatusMessage
+//     for the TUI status line. Each of these surfaces has a single
+//     caller; an interface would be ceremony.
 package hook
 
 import (
 	"context"
-	"sync"
 
-	"github.com/genai-io/gen-code/internal/core"
 	"github.com/genai-io/gen-code/internal/setting"
 )
 
-// Service is the public contract for the hook module.
-type Service interface {
-	// execution
+// Handler is what callers depend on to fire hooks at application
+// events and merge outcomes. Modeled on http.Handler: pass an event
+// (the request analogue) and receive the merged HookOutcome (the
+// response analogue).
+//
+// Reading a call site:
+//
+//	handler.Execute(ctx, hook.PreToolUse, input)
+//	// "the hook handler executes the PreToolUse event"
+//
+// Most callers depend on this surface only. The app composition root
+// and the TUI view consume the additional methods on *Engine directly.
+type Handler interface {
 	Execute(ctx context.Context, event EventType, input HookInput) HookOutcome
 	ExecuteAsync(event EventType, input HookInput)
-	FilterToolCalls(ctx context.Context, calls []core.ToolCall, agentID, agentType string) FilterToolCallsResult
-
-	// query
 	HasHooks(event EventType) bool
 	StopHookActive() *bool
-	CurrentStatusMessage() string
-
-	// reconfigure (after session/provider/cwd change)
-	SetSettings(settings *setting.Settings)
-	SetLLMCompleter(fn LLMCompleter, model string)
-	SetTranscriptPath(path string)
-	SetCwd(cwd string)
-	SetPermissionMode(mode string)
-	SetPromptCallback(cb PromptCallback)
-	SetAsyncHookCallback(cb AsyncHookCallback)
-	SetEnvProvider(fn func() []string)
-
-	// session-scoped hooks
-	AddSessionFunctionHook(event EventType, matcher string, hook FunctionHook) string
-	AddRuntimeFunctionHook(event EventType, matcher string, hook FunctionHook) string
-	ClearSessionHooks()
-
-	// lifecycle
-	Wait()
-
-	Engine() *Engine
 }
 
-// Engine returns the receiver itself, satisfying the Service interface.
-func (e *Engine) Engine() *Engine { return e }
-
-// Compile-time check: *Engine implements Service.
-var _ Service = (*Engine)(nil)
+// Compile-time guarantee that *Engine satisfies Handler.
+var _ Handler = (*Engine)(nil)
 
 // Options holds the dependencies needed to create the default hook engine.
 // All fields must be supplied by the caller — the hook package does not reach into
@@ -67,48 +65,42 @@ func Initialize(opts Options) {
 	if opts.EnvProvider != nil {
 		e.SetEnvProvider(opts.EnvProvider)
 	}
-	SetDefault(e)
+	defaultEngine = e
 }
 
-// -- singleton ----------------------------------------------------------
+// DefaultEngine returns the package-level *Engine. Returns the
+// pre-Initialize zero-hook engine if Initialize has not run yet.
+//
+// This is the only seam for callers that need the full *Engine surface
+// (the app composition root). All other consumers should depend on
+// Dispatcher (or Status) instead.
+func DefaultEngine() *Engine {
+	return defaultEngine
+}
 
-var (
-	mu       sync.RWMutex
-	instance Service
-)
-
-// Default returns the singleton Service instance.
-// Panics if Initialize has not been called.
-func Default() Service {
-	mu.RLock()
-	s := instance
-	mu.RUnlock()
-	if s == nil {
-		panic("hook: not initialized")
+// SetDefaultEngine replaces the package-level engine. Intended for
+// tests. A nil argument restores the empty pre-Initialize engine.
+func SetDefaultEngine(e *Engine) {
+	if e == nil {
+		defaultEngine = newEmptyEngine()
+		return
 	}
-	return s
+	defaultEngine = e
 }
 
-// DefaultIfInit returns the singleton Service instance, or nil if not yet
-// initialized. Used during early initialization when the hook service may
-// not be ready.
-func DefaultIfInit() Service {
-	mu.RLock()
-	s := instance
-	mu.RUnlock()
-	return s
+// ResetDefaultEngine restores the empty pre-Initialize engine.
+// Intended for tests.
+func ResetDefaultEngine() {
+	defaultEngine = newEmptyEngine()
 }
 
-// SetDefault replaces the singleton instance. Intended for tests.
-func SetDefault(s Service) {
-	mu.Lock()
-	instance = s
-	mu.Unlock()
-}
+// defaultEngine is the package-level hook engine. Initialized to an
+// empty (zero-hook) engine so callers that fire events before
+// Initialize is called don't crash.
+var defaultEngine = newEmptyEngine()
 
-// ResetService clears the singleton instance. Intended for tests.
-func ResetService() {
-	mu.Lock()
-	instance = nil
-	mu.Unlock()
+// newEmptyEngine returns an Engine wired to empty settings — fires no
+// hooks until Initialize installs a real one.
+func newEmptyEngine() *Engine {
+	return NewEngine(setting.NewSettings(), "", "", "")
 }

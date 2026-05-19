@@ -94,7 +94,7 @@ func newModel(opts setting.RunOptions) (*model, error) {
 	// Wire task completion: closure captures hub + hooks + tracker directly.
 	var hookEngine *hook.Engine
 	if m.services.Hook != nil {
-		hookEngine = m.services.Hook.Engine()
+		hookEngine = m.services.Hook
 	}
 	m.wireTaskLifecycle(hookEngine)
 
@@ -229,7 +229,7 @@ func (m *model) applyResumeOption(resumeID string) error {
 func (m *model) BuildCompactRequest(focus, trigger string) conv.CompactRequest {
 	var hookEngine *hook.Engine
 	if m.services.Hook != nil {
-		hookEngine = m.services.Hook.Engine()
+		hookEngine = m.services.Hook
 	}
 	return conv.CompactRequest{
 		Ctx:        context.Background(),
@@ -785,7 +785,7 @@ func (m *model) applyStartupHookOutcome(outcome hook.HookOutcome) {
 		return
 	}
 	if m.systemInput.FileWatcher == nil {
-		m.systemInput.FileWatcher = trigger.NewFileWatcher(m.services.Hook.Engine(), func(outcome hook.HookOutcome) {
+		m.systemInput.FileWatcher = trigger.NewFileWatcher(m.services.Hook, func(outcome hook.HookOutcome) {
 			if m.systemInput.AsyncHookQueue != nil && outcome.InitialUserMessage != "" {
 				m.systemInput.AsyncHookQueue.Push(trigger.AsyncHookRewake{Notice: "File watcher hook triggered", Context: []string{outcome.InitialUserMessage}})
 			}
@@ -876,7 +876,7 @@ func (m *model) injectNotification(msg hub.Message) tea.Cmd {
 	return m.sendToAgent(msg.Content, nil)
 }
 
-func (m *model) wireTaskLifecycle(hookEngine *hook.Engine) {
+func (m *model) wireTaskLifecycle(hookEngine hook.Handler) {
 	trackerSvc := m.services.Tracker
 	eventHub := m.eventHub
 

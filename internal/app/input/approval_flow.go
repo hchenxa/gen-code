@@ -33,7 +33,7 @@ type ApprovalRuntime interface {
 type ApprovalFlowDeps struct {
 	Actions            ApprovalRuntime
 	Input              *Model
-	HookEngine         *hook.Engine
+	HookEngine         hook.Handler
 	Settings           *setting.Settings
 	SessionPermissions *setting.SessionPermissions
 	SetOperationMode   func(setting.OperationMode)

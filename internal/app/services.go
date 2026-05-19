@@ -26,7 +26,7 @@ type services struct {
 	Setting  setting.Service
 	LLM      llm.Service
 	Tool     tool.Service
-	Hook     hook.Service
+	Hook     *hook.Engine
 	Session  session.Service
 	Skill    skill.Service
 	Subagent subagent.Service
@@ -46,7 +46,7 @@ func newServices() services {
 		Setting:  setting.Default(),
 		LLM:      llm.Default(),
 		Tool:     tool.Default(),
-		Hook:     hook.DefaultIfInit(),
+		Hook:     hook.DefaultEngine(),
 		Session:  session.Default(),
 		Skill:    skill.Default(),
 		Subagent: subagent.Default(),

@@ -3,7 +3,7 @@ package worktree
 import "github.com/genai-io/gen-code/internal/hook"
 
 func fireWorktreeCreated(name, path string) {
-	if h := hook.DefaultIfInit(); h != nil {
+	if h := hook.DefaultEngine(); h != nil {
 		h.ExecuteAsync(hook.WorktreeCreate, hook.HookInput{
 			Name:         name,
 			WorktreePath: path,
@@ -12,7 +12,7 @@ func fireWorktreeCreated(name, path string) {
 }
 
 func fireWorktreeRemoved(path string) {
-	if h := hook.DefaultIfInit(); h != nil {
+	if h := hook.DefaultEngine(); h != nil {
 		h.ExecuteAsync(hook.WorktreeRemove, hook.HookInput{
 			WorktreePath: path,
 		})

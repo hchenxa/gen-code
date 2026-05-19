@@ -21,7 +21,7 @@ type Service interface {
 	Register(config *AgentConfig) // add an agent configuration
 
 	// factory
-	NewExecutor(provider llm.Provider, cwd string, parentModelID string, hookEngine *hook.Engine) *Executor
+	NewExecutor(provider llm.Provider, cwd string, parentModelID string, hookEngine hook.Handler) *Executor
 
 	// system prompt
 	PromptSection() string // rendered section for system prompt

@@ -11,19 +11,21 @@ This file tracks structural follow-ups that are not tied to a single feature.
 ### Code refactors flagged by `docs/packages/*/Known Violations`
 
 - **God `Service` interfaces.** Split per the per-package suggestions:
-  `hook` (16 methods), `plugin` (21), `setting` (14), `skill` (11),
-  `session` (11), `agent` (11), `cron` (10), `subagent` (9),
-  `command` (7), `llm` (8), `task` (8), `tool` (6). Define narrow
-  consumer-defined interfaces alongside the concrete `*service` / `*Engine`
-  / `*Registry`; let each call site narrow to what it needs.
-  ~~`mcp` (9 methods)~~ — resolved by deleting the `Service` interface
-  entirely; callers depend on `*mcp.Registry` directly.
-- **Escape-hatch methods on Service interfaces.** Drop `.Engine()` and
-  `.GetStore()` from the `Service` contracts; have consumers depend on
-  either a narrower interface or the concrete type directly. Remaining
-  call sites: `internal/app/model.go` (`Hook.Engine()`),
-  `internal/app/update.go` (`Session.GetStore()`).
-  ~~`MCP.Registry()`~~ — resolved (see above).
+  `plugin` (21), `setting` (14), `skill` (11), `session` (11),
+  `agent` (11), `cron` (10), `subagent` (9), `command` (7),
+  `llm` (8), `task` (8), `tool` (6). Define narrow consumer-defined
+  interfaces alongside the concrete `*service` / `*Registry`; let each
+  call site narrow to what it needs.
+  ~~`mcp` (9 methods)~~ — resolved by deleting `Service` entirely and
+  exposing role interfaces (`Tools`, `Servers`) + `*mcp.Registry`.
+  ~~`hook` (16 methods)~~ — resolved by deleting `Service`, exposing
+  one role interface (`Handler`) + `*hook.Engine` directly.
+- **Escape-hatch methods on Service interfaces.** Drop `.GetStore()` from
+  `session.Service`. Remaining call site: `internal/app/update.go`
+  (`Session.GetStore()`).
+  ~~`MCP.Registry()`~~ — resolved.
+  ~~`Hook.Engine()`~~ — resolved (Service deleted; consumers depend on
+  `hook.Handler` or `*hook.Engine` directly).
 - **Singleton via `Default()` / `DefaultIfInit()`.** Move construction
   into `cmd/gen` and pass the concrete service into
   `internal/app.newServices()` instead of pulling from each package's

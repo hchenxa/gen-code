@@ -556,7 +556,7 @@ func (m *model) executeCommand(ctx context.Context, inputText string) (string, t
 func (m *model) approvalDeps() input.ApprovalFlowDeps {
 	var hookEngine *hook.Engine
 	if m.services.Hook != nil {
-		hookEngine = m.services.Hook.Engine()
+		hookEngine = m.services.Hook
 	}
 	return input.ApprovalFlowDeps{
 		Actions:            m,

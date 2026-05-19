@@ -292,11 +292,6 @@ func (e *Engine) getAsyncHookCallback() AsyncHookCallback {
 	return e.asyncCallback
 }
 
-// Wait waits for all detached async hook goroutines to finish.
-func (e *Engine) Wait() {
-	e.detachedWg.Wait()
-}
-
 // CurrentStatusMessage returns the most recently-started active hook status.
 func (e *Engine) CurrentStatusMessage() string {
 	return e.status.CurrentMessage()

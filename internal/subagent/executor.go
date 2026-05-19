@@ -27,7 +27,7 @@ type Executor struct {
 	provider            llm.Provider
 	cwd                 string
 	parentModelID       string // Parent conversation's model ID (used when inheriting)
-	hooks               *hook.Engine
+	hooks               hook.Handler
 	sessionStore        SubagentSessionStore // Optional: when set, subagent sessions are persisted
 	parentSessionID     string               // Parent session ID for linking subagent sessions
 	userInstructions    string               // ~/.gen/GEN.md + rules
@@ -55,7 +55,7 @@ type runConfig struct {
 
 // NewExecutor creates a new agent executor. parentModelID is used for model
 // inheritance; hookEngine, when non-nil, fires PreToolUse hooks during runs.
-func NewExecutor(llmProvider llm.Provider, cwd string, parentModelID string, hookEngine *hook.Engine) *Executor {
+func NewExecutor(llmProvider llm.Provider, cwd string, parentModelID string, hookEngine hook.Handler) *Executor {
 	return &Executor{
 		provider:      llmProvider,
 		cwd:           cwd,

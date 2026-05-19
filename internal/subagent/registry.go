@@ -271,7 +271,7 @@ func (r *Registry) PromptSection() string {
 
 // NewExecutor creates a new agent executor.
 // Implements Service.NewExecutor by delegating to the package-level constructor.
-func (r *Registry) NewExecutor(provider llm.Provider, cwd string, parentModelID string, hookEngine *hook.Engine) *Executor {
+func (r *Registry) NewExecutor(provider llm.Provider, cwd string, parentModelID string, hookEngine hook.Handler) *Executor {
 	return NewExecutor(provider, cwd, parentModelID, hookEngine)
 }
 

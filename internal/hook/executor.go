@@ -9,75 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/genai-io/gen-code/internal/core"
 	"github.com/genai-io/gen-code/internal/setting"
 )
-
-// FilterToolCallsResult holds the results from PreToolUse hook filtering.
-type FilterToolCallsResult struct {
-	Allowed           []core.ToolCall
-	Blocked           []core.ToolResult
-	HookAllowed       map[string]bool // tool call IDs pre-approved by hooks
-	HookForceAsk      map[string]bool // tool call IDs forced to prompt by hooks
-	AdditionalContext string
-}
-
-// FilterToolCalls runs PreToolUse hooks on each tool call and returns which
-// calls are allowed, which are blocked, and any context/permission flags.
-// The optional agentID/agentType are set when called from a subagent context.
-func (e *Engine) FilterToolCalls(ctx context.Context, calls []core.ToolCall, agentID, agentType string) FilterToolCallsResult {
-	r := FilterToolCallsResult{
-		HookAllowed:  make(map[string]bool),
-		HookForceAsk: make(map[string]bool),
-	}
-	if e == nil {
-		r.Allowed = calls
-		return r
-	}
-
-	for _, tc := range calls {
-		params, _ := core.ParseToolInput(tc.Input)
-		hookInput := HookInput{
-			ToolName:  tc.Name,
-			ToolInput: params,
-			ToolUseID: tc.ID,
-		}
-		if agentID != "" {
-			hookInput.AgentID = agentID
-			hookInput.AgentType = agentType
-		}
-		outcome := e.Execute(ctx, PreToolUse, hookInput)
-
-		if outcome.ShouldBlock {
-			r.Blocked = append(r.Blocked, *core.ErrorResult(tc, "Blocked by hook: "+outcome.BlockReason))
-			continue
-		}
-
-		if outcome.UpdatedInput != nil {
-			if updated, err := json.Marshal(outcome.UpdatedInput); err == nil {
-				tc.Input = string(updated)
-			}
-		}
-
-		if outcome.AdditionalContext != "" {
-			if r.AdditionalContext == "" {
-				r.AdditionalContext = outcome.AdditionalContext
-			} else {
-				r.AdditionalContext += "\n" + outcome.AdditionalContext
-			}
-		}
-
-		if outcome.PermissionAllow {
-			r.HookAllowed[tc.ID] = true
-		}
-		if outcome.ForceAsk {
-			r.HookForceAsk[tc.ID] = true
-		}
-
-		r.Allowed = append(r.Allowed, tc)
-	}
-	return r
-}
 
 func (e *Engine) executeMatchedHook(ctx context.Context, hook matchedHook, input HookInput) HookOutcome {
 	statusID := e.status.Start(matchedHookStatusMessage(hook))

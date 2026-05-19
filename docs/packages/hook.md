@@ -23,80 +23,88 @@ events are **application-layer** concerns (`PreToolUse`, `Stop`,
 
 ## Contract
 
-The seam consumed by `internal/app` and feature packages that fire hooks:
+One role interface plus the concrete engine — no producer-side union.
+
+| Role | Shape | Consumers |
+|---|---|---|
+| **Handler** — fire hooks at an application event | `interface{ Execute; ExecuteAsync; HasHooks; StopHookActive }` | agent loop, slash-command approval flow, compaction, file watcher, worktree / plugin / mcp / subagent |
+| **Engine configuration + status** (no interface) | concrete `*Engine` — `Set*` runtime knobs, `ClearSessionHooks`, `SetAuditCallback`, `CurrentStatusMessage` | app composition root (Set\* methods) and the TUI view (CurrentStatusMessage). Each is one caller; an interface would be ceremony. |
+
+`*Engine` is the only implementation; consumers narrow by declaration:
+
+```go
+var handler hook.Handler = hook.DefaultEngine()
+handler.Execute(ctx, hook.PreToolUse, input)
+```
 
 ```go
 package hook
 
-// Service is the public contract for the hook module.
-type Service interface {
-    // execution
+// Handler is what callers depend on to fire hooks at application
+// events and merge outcomes. Modeled on http.Handler — pass an event
+// (the request analogue) and receive the merged HookOutcome (the
+// response analogue). Most callers depend on this surface only.
+type Handler interface {
     Execute(ctx context.Context, event EventType, input HookInput) HookOutcome
     ExecuteAsync(event EventType, input HookInput)
-    FilterToolCalls(ctx context.Context, calls []core.ToolCall, agentID, agentType string) FilterToolCallsResult
-
-    // query
     HasHooks(event EventType) bool
     StopHookActive() *bool
-    CurrentStatusMessage() string
-
-    // reconfigure (after session/provider/cwd change)
-    SetSettings(settings *setting.Settings)
-    SetLLMCompleter(fn LLMCompleter, model string)
-    SetTranscriptPath(path string)
-    SetCwd(cwd string)
-    SetPermissionMode(mode string)
-    SetPromptCallback(cb PromptCallback)
-    SetAsyncHookCallback(cb AsyncHookCallback)
-    SetEnvProvider(fn func() []string)
-
-    // session-scoped hooks
-    AddSessionFunctionHook(event EventType, matcher string, hook FunctionHook) string
-    AddRuntimeFunctionHook(event EventType, matcher string, hook FunctionHook) string
-    ClearSessionHooks()
-
-    // lifecycle
-    Wait()
-
-    Engine() *Engine
 }
 
-// HookInput / HookOutput / HookOutcome / PermissionUpdate / FunctionHook /
-// PromptCallback / AsyncHookCallback ... — see types.go for the full
-// payload schema.
+// *Engine is the only implementation; satisfies Handler and carries
+// the Set* / status methods used by the app composition root and the
+// TUI view layer.
+type Engine struct { /* unexported */ }
+
+var _ Handler = (*Engine)(nil)
+
+// Configuration methods on *Engine (used by the app composition root).
+func (e *Engine) SetSettings(*setting.Settings)
+func (e *Engine) SetLLMCompleter(LLMCompleter, string)
+func (e *Engine) SetTranscriptPath(string)
+func (e *Engine) SetCwd(string)
+func (e *Engine) SetPermissionMode(string)
+func (e *Engine) SetAsyncHookCallback(AsyncHookCallback)
+func (e *Engine) SetAuditCallback(AuditCallback)
+func (e *Engine) ClearSessionHooks()
+
+// Status read on *Engine (used by the TUI view).
+func (e *Engine) CurrentStatusMessage() string
+
+// Package-level access.
+func Initialize(opts Options)
+func DefaultEngine() *Engine
+func SetDefaultEngine(e *Engine)   // test-only
+func ResetDefaultEngine()          // test-only
 ```
 
-### Known Violations
+### Why one interface, not the previous 16-method god `Service`
 
-The current `Service` is the worst offender in the repository against the
-[Contract Rules](TEMPLATE.md#contract-rules). Tracked for PR-3 cleanup; the
-contract above is verbatim from today's code.
+The previous `hook.Service` bundled 16 methods (the largest god union
+in the repo) and forced an `Engine() *Engine` escape hatch because
+`SetAuditCallback` lived only on `*Engine`, not on `Service`.
 
-- **Rule 1 (small).** **16 methods.** It bundles execution, querying,
-  reconfiguration, registration, lifecycle, *and* an escape hatch into
-  one interface. Suggested split, each <= 3 methods:
-  - `HookExecutor` → `Execute`, `ExecuteAsync`, `FilterToolCalls`
-  - `HookQuery` → `HasHooks`, `StopHookActive`, `CurrentStatusMessage`
-  - `HookRegistrar` → `AddSessionFunctionHook`,
-    `AddRuntimeFunctionHook`, `ClearSessionHooks`
-  - `HookConfigurator` → the eight `Set*` methods, ideally collapsed
-    into one `Reconfigure(Options)` that takes a struct
-  - `HookLifecycle` → `Wait`
-  - Remove `Engine()` entirely (see next rule)
-- **Rule 7 (no wrapper-only interfaces & no escape hatches).** `Engine()
-  *Engine` lets every caller bypass the interface and reach into the
-  concrete `*Engine`. The interface then no longer constrains anything.
-  Either delete `Engine()` (and the implementation
-  `func (e *Engine) Engine() *Engine { return e }`), or stop pretending
-  there is a seam and expose `*Engine` directly.
-- **Rule 5 (constructors return concrete types).** `Default()` returns
-  `Service`. `Initialize` constructs `*Engine` internally then up-casts.
-  Callers cannot reach engine-only methods (`SetAuditCallback`) without
-  `Engine()` — which is why the escape hatch exists in the first place.
-- **Singleton via `Default()` and `DefaultIfInit()`.** Two flavors of
-  singleton accessor signal that callers are racing initialization.
-  Construction should move into the app composition root and be passed in
-  explicitly.
+Deleting `Service` and exposing `*Engine` directly (with one role
+interface for the genuinely-narrow fire surface) drops:
+
+- The escape hatch — callers that need `SetAuditCallback` just use
+  `*Engine` like every other configurator.
+- Six **dead methods** with zero non-test callers: `FilterToolCalls`,
+  `Wait`, `AddSessionFunctionHook`, `AddRuntimeFunctionHook`,
+  `SetPromptCallback`, `SetEnvProvider`. `Wait` and `FilterToolCalls`
+  were deleted entirely; the other four stay on `*Engine` only as
+  test infrastructure (no production caller).
+- The two-flavor accessor pattern (`Default` panics, `DefaultIfInit`
+  is nil-tolerant). Replaced by a single `DefaultEngine()` that
+  returns an empty-but-non-nil engine until `Initialize` runs.
+
+`CurrentStatusMessage` does not get its own interface — one method
+with one caller (TUI view) is exactly the speculative abstraction
+[Rule 3](TEMPLATE.md#contract-rules) warns against.
+
+### Remaining Known Violations
+
+None.
 
 ## Internals
 
