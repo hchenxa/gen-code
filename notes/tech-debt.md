@@ -37,30 +37,9 @@ This file tracks structural follow-ups that are not tied to a single feature.
   / ~~`Session.SetStore()`~~ — Service interfaces deleted in their
   respective packages; consumers depend on the concrete type or a
   narrow role interface.
-- **Singleton via `Default()` / `DefaultIfInit()`.** Move construction
-  into `cmd/gen` and pass the concrete service into
-  `internal/app.newServices()` instead of pulling from each package's
-  package-level singleton. Eliminates the two-flavor accessor pattern
-  (`Default` panics; `DefaultIfInit` is nil-tolerant).
 - ~~**`skill.AddPluginSkills` uses anonymous struct slice.**~~ Resolved
   by deleting the method entirely — it had zero callers and the
   `addPluginPath` / `additionalPaths` plumbing behind it was dead too.
-
-### Adapter cleanups
-
-- **Extract `core.Image` adapter out of `internal/image`.** `ToProviderData`
-  and `ReadImageToProviderData` are the only reasons `image` cannot be
-  `infrastructure`. Move them to a small adapter (e.g. consumer code in
-  `internal/app/input` or a new `internal/image/adapter` subpackage that
-  is itself `feature`) so `internal/image` can be reclassified back to
-  `infrastructure`.
-
-### Tests
-
-- Unit test missing for `internal/agent.BuildParams` → `core.Config`
-  translation (flagged in `docs/packages/agent.md`).
-- `internal/agent/` has no package-local test file; coverage is
-  end-to-end only.
 
 ### Documentation gaps (resolved 2026-05-18 in the docs/restructure branch)
 
@@ -72,10 +51,3 @@ This file tracks structural follow-ups that are not tied to a single feature.
 - ~~Infrastructure packages (`log`, `secret`, `filecache`, `markdown`)
   have no `docs/packages/*.md` page.~~ Added all four.
 
-### Remaining documentation work
-
-- `docs/packages/ui.md` Contract section is complete but the
-  per-subpackage tour (`input/`, `conv/`, `hub/`, `trigger/`, `kit/`)
-  is still squeezed into one page. Could split into
-  `packages/ui/<sub>.md` once any single subpackage grows enough to
-  warrant it.

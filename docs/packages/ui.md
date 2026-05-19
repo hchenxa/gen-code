@@ -85,8 +85,25 @@ Root files (no business logic; pure glue):
 
 | File | Role |
 |---|---|
-| `model.go` | Root model struct, `Init()`, conv.Runtime handlers, session restore. |
-| `update.go` | `Update()` — msg-type switch routing to sub-models. |
+| `model.go` | Root `model` struct + `Init()`. Behaviour split across siblings. |
+| `model_lifecycle.go` | Construction + run-option application + task lifecycle wiring + SessionEnd shutdown. |
+| `model_session.go` | Session save/load + per-session task storage + fork. |
+| `model_scrollback.go` | Render committed messages into terminal scrollback via `tea.Println`. |
+| `model_agent_events.go` | `conv.Runtime` callbacks (turn start, tokens, tool results, turn end, stop). |
+| `model_compact.go` | Conversation compaction (auto + `/compact`). |
+| `model_tool_effects.go` | Side effects from tool calls (cwd, files, agent launches, overflow). |
+| `model_workspace.go` | cwd / file change reactions + FileWatcher setup. |
+| `model_turn_queue.go` | Turn-end inbox drain + prompt injection + stop-hook gate. |
+| `model_deps.go` | Deps builders for sub-features (`overlayDeps`, `triggerDeps`, etc.). |
+| `model_actions.go` | Identity switch + slash-command dispatch from selector hotkeys. |
+| `update.go` | `Update()` dispatch + `routeFeatureUpdate` + `overlaySelectors`. |
+| `update_keys.go` | Keyboard handling + active-modal delegation + Ctrl+O double-tap. |
+| `update_resize.go` | Window resize + scrollback reflow. |
+| `update_submit.go` | Submit + provider turn + skill invocation. |
+| `update_command.go` | Slash command deps + execution. |
+| `update_modal.go` | Operation-mode cycle + question-modal protocol. |
+| `update_approval.go` | Permission approval flow + bridge response. |
+| `update_input_effects.go` | Stream cancel, tool-call cancel, image paste, quit. |
 | `view.go` | `View()` — composes sub-model `View()` strings into terminal layout. |
 | `agent.go` | Agent session lifecycle helpers (`sendToAgent`, `ContinueOutbox`, `ReconfigureAgentTool`). |
 | `services.go` | The `services` struct + `newServices()` + `refreshAfterReload()`. |
