@@ -307,11 +307,13 @@ emits tool calls, emits a final result. Every emission goes onto its
 agent goroutine                         (runs in core.Agent.Run)
    │
    ▼
-core.Event onto Outbox
+core.Event onto Outbox channel
+   │   Event types: OnStart, PreInfer, OnChunk (×N), PostInfer,
+   │   PreTool, PostTool, OnMessage, end-of-turn, AgentStop, etc.
    │
    ▼
 ContinueOutbox tea.Cmd                  agent.go: blocks on the channel,
-   │                                    reads one event, returns a
+   │                                    reads ONE event, returns a
    │                                    tea.Msg that ALSO carries the
    │                                    next ContinueOutbox cmd. So
    │                                    Update keeps scheduling fresh
@@ -322,44 +324,90 @@ ContinueOutbox tea.Cmd                  agent.go: blocks on the channel,
 tea.Msg (typed as a conv.* msg)
    │
    ▼
-Update → routeToSubModel             update.go
+Update → routeToSubModel                update.go
    └─ conv.Update(m, &m.conv, msg)      app/conv/update.go
          │
-         │ dispatches by event type, calls back into m via the
-         │ conv.Runtime interface that *model implements:
+         │ Routes by event type. The streaming flow is:
          │
          ▼
-   m.OnTurnBegin()                   turn start  ── model_agent_events.go
-   m.OnTokenUsage(resp)                streaming token counts
-   m.OnAutoCompact(info)           auto-compact ── model_compact.go
-   m.OnToolResult(tr)              tool finished
-   m.OnTurnEnd(result)             turn complete
+   PreInfer                             applyPreInfer
+       ├─ rt.OnTurnBegin()              turn start; reset token counters
+       ├─ m.Stream.Active = true
+       ├─ m.Append({Role: assistant})   empty assistant message — chunks
+       │                                will be appended to it
+       └─ start spinner
         │
+        ▼
+   OnChunk (one per LLM token batch)    applyChunk
+       ├─ m.AppendToLast(text)          grow the in-progress message
+       └─ if chunk.Done && no tools:
+              Stream.Active = false
+              rt.CommitMessages()       promote to scrollback (see below)
+        │
+        ▼
+   PostInfer                            applyPostInfer
+       ├─ rt.OnTokenUsage(resp)         model_agent_events.go
+       └─ if tool calls: track them
+        │
+        ▼
+   PreTool / PostTool                   tool execution stream
+       ├─ applyPreTool                  show "running tool X" spinner
+       └─ applyPostTool
+             └─ rt.OnToolResult(tr)     model_agent_events.go
+        │
+        ▼
+   end-of-turn event                    rt.OnTurnEnd(result)
+        │                               model_agent_events.go
         ├─ m.CommitMessages()           model_scrollback.go
-        │       │
-        │       ▼ renderAndCommit → tea.Println(strings.Join(parts, "\n"))
-        │       │
-        │       ▼ terminal scrollback receives rendered Markdown
-        │
-        └─ m.drainTurnQueues()          model_turn_queue.go
-                see Path C
+        ├─ m.drainTurnQueues()          model_turn_queue.go (Path C)
+        └─ fire idle hooks
 
-   m.OnAgentStop(err)              turn ended (or canceled)
+   rt.OnAgentStop(err)                  turn ended (or canceled)
+   rt.OnAutoCompact / OnCompactResult / OnTokenLimitResult ...
 ```
 
-Two distinct render paths:
+### Where the user sees streaming text
+
+The TUI paints in **two regions**:
+
+```
+┌───────────────────────────────────────────────────────────┐
+│ scrollback (above) — native terminal scrollback           │
+│   ▲ written via tea.Println                               │
+│   ▲ committed messages only (Stream.Active == false)      │
+├───────────────────────────────────────────────────────────┤
+│ active content (middle) — repainted on every Update by    │
+│ View() → renderChatSection → conv.RenderActiveContent     │
+│   ▲ shows uncommitted messages, i.e. the assistant        │
+│     message currently growing token-by-token              │
+│   ▲ shows tool-call spinners                              │
+├───────────────────────────────────────────────────────────┤
+│ input strip (bottom) — textarea, queue preview, status    │
+│   ▲ also repainted by View() on every Update              │
+└───────────────────────────────────────────────────────────┘
+```
+
+A streaming reply lives in the **active content** zone while
+`Stream.Active == true`. Each OnChunk appends text to the last
+`m.conv.Messages` entry, View() repaints, the user watches it grow.
+When the stream finishes, `CommitMessages` calls `tea.Println` to
+**move** the final rendered message into native scrollback — at that
+point the same content disappears from the active zone (because
+`renderAndCommit` advances `CommittedCount`) and appears in the
+terminal's scrollback above.
+
+`renderAndCommit(checkReady=true)` is the rule that prevents
+double-rendering: it never commits the last message if it's still
+streaming.
+
+### Two render mechanisms
 
 1. **`tea.Println`** — emits a line to the terminal **above** Bubble Tea's
    alt-screen. The terminal keeps the line in its native scrollback. Used
    for committed conversation messages (assistant replies, notices).
 2. **`View()`** — called by Bubble Tea after every Update. Composes the
-   bottom UI strip (textarea, status bar, modal overlays). This is the
-   only thing rerendered on resize.
-
-Streaming assistant tokens accumulate in `m.conv.Messages` but are not
-`Println`-ed until they're "committed" — `renderAndCommit(checkReady=true)`
-skips the last message if it's still streaming. The final
-`OnTurnEnd` commits it.
+   active-content zone + bottom UI strip (textarea, status bar, modal
+   overlays). This is the only thing rerendered on resize.
 
 ## File pointers
 
