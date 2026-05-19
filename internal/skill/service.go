@@ -1,32 +1,13 @@
+// Package skill owns the registry of user/project/plugin-scoped skill
+// definitions: their markdown content, per-skill enabled state, and the
+// rendering of the active-skills section consumed by core.System.
+//
+// The package exposes *Registry directly. Skill's consumers (TUI
+// selector, slash-command lookup, system-prompt rendering, recorder
+// observer) each use a different subset of the registry surface; no
+// shared narrow surface ⇒ no producer-side role interface. Consumers
+// hold *Registry as an opaque handle and call its methods.
 package skill
-
-import "sync"
-
-// Service is the public contract for the skill module.
-type Service interface {
-	// query
-	List() []*Skill                       // all loaded skills
-	Get(name string) (*Skill, bool)       // lookup by name
-	IsEnabled(name string) bool           // check if enabled
-	FindByPartialName(name string) *Skill // partial/suffix match
-	GetEnabled() []*Skill                 // all enabled or active skills
-	GetActive() []*Skill                  // all active skills (model-aware)
-	Count() int                           // total number of loaded skills
-
-	// mutation
-	SetEnabled(name string, enabled bool, userLevel bool) error
-	GetDisabledAt(userLevel bool) map[string]bool
-
-	// system prompt
-	PromptSection() string                       // rendered section for system prompt
-	GetSkillInvocationPrompt(name string) string // full skill content for injection
-
-	// concrete access
-	Registry() *Registry
-}
-
-// Compile-time check: *Registry implements Service.
-var _ Service = (*Registry)(nil)
 
 // Options holds all dependencies for initialization.
 type Options struct {
@@ -34,7 +15,7 @@ type Options struct {
 }
 
 // Initialize loads skills from all sources, applies persisted states,
-// and sets the singleton.
+// and installs the result as the package-level *Registry.
 func Initialize(opts Options) {
 	cwd := opts.CWD
 	loader := newLoader(cwd)
@@ -60,49 +41,46 @@ func Initialize(opts Options) {
 		}
 	}
 
-	mu.Lock()
-	instance = registry
-	mu.Unlock()
+	defaultRegistry = registry
 }
 
-// ── singleton ──────────────────────────────────────────────
+// Default returns the package-level *Registry. Returns an empty
+// (no-skills) registry pre-Initialize so callers that touch it before
+// Initialize don't crash.
+func Default() *Registry {
+	return defaultRegistry
+}
 
-var (
-	mu       sync.RWMutex
-	instance Service
-)
-
-// Default returns the singleton Service instance.
-// Panics if Initialize has not been called.
-func Default() Service {
-	mu.RLock()
-	s := instance
-	mu.RUnlock()
-	if s == nil {
-		panic("skill: not initialized")
+// DefaultIfInit returns the package-level *Registry, or nil if
+// Initialize has not yet replaced the empty pre-init instance. Kept
+// for callers that want to distinguish "ready" from "not ready"
+// states.
+func DefaultIfInit() *Registry {
+	if defaultRegistry == nil || len(defaultRegistry.skills) == 0 {
+		return nil
 	}
-	return s
+	return defaultRegistry
 }
 
-// DefaultIfInit returns the singleton Service instance, or nil if not yet
-// initialized. Useful for nil-guards that used to check DefaultRegistry == nil.
-func DefaultIfInit() Service {
-	mu.RLock()
-	s := instance
-	mu.RUnlock()
-	return s
+// SetDefaultRegistry replaces the package-level registry. Intended
+// for tests. A nil argument restores a fresh empty *Registry.
+func SetDefaultRegistry(r *Registry) {
+	if r == nil {
+		defaultRegistry = newEmptyRegistry()
+		return
+	}
+	defaultRegistry = r
 }
 
-// SetDefault replaces the singleton instance. Intended for tests.
-func SetDefault(s Service) {
-	mu.Lock()
-	instance = s
-	mu.Unlock()
+// ResetDefaultRegistry restores a fresh empty *Registry. Intended for
+// tests.
+func ResetDefaultRegistry() {
+	defaultRegistry = newEmptyRegistry()
 }
 
-// ResetService clears the singleton instance. Intended for tests.
-func ResetService() {
-	mu.Lock()
-	instance = nil
-	mu.Unlock()
+// defaultRegistry is the package-level skill registry.
+var defaultRegistry = newEmptyRegistry()
+
+func newEmptyRegistry() *Registry {
+	return &Registry{skills: make(map[string]*Skill)}
 }

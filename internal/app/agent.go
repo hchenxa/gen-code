@@ -83,7 +83,7 @@ func (m *model) buildAgentParams() agent.BuildParams {
 			}
 		}
 		if m.services.Skill != nil {
-			if reg := m.services.Skill.Registry(); reg != nil {
+			if reg := m.services.Skill; reg != nil {
 				reg.SetStateChangeObserver(func(name, previous, current, caller string) {
 					rec.RecordSkillState(transcript.SkillRecord{
 						Name:     name,

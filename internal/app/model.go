@@ -118,7 +118,7 @@ func newBaseModel() model {
 	return model{
 		userInput: input.New(appCwd, defaultWidth, commandSuggestionMatcher(svc.Command), input.SelectorDeps{
 			AgentRegistry:    &agentRegistryAdapter{svc.Subagent},
-			SkillRegistry:    svc.Skill.Registry(),
+			SkillRegistry:    svc.Skill,
 			MCPRegistry:      svc.MCP,
 			PluginRegistry:   svc.Plugin.Registry(),
 			IdentityRegistry: svc.Identity,

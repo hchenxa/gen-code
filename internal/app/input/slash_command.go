@@ -43,7 +43,7 @@ type CommandDeps struct {
 	CurrentModel  *llm.CurrentModelInfo
 
 	// Domain services
-	Skill   skill.Service
+	Skill   *skill.Registry
 	Plugin  plugin.Service
 	MCP     *mcp.Registry
 	Tracker tracker.Service
@@ -201,7 +201,7 @@ func (c CommandController) executeSkillSlashCommand(sk *skill.Skill, args string
 	return ""
 }
 
-func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc skill.Service, pluginSvc plugin.Service) {
+func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc *skill.Registry, pluginSvc plugin.Service) {
 	if skillSvc != nil {
 		state.Skill.SetPending(sk.FullName(), skillSvc.GetSkillInvocationPrompt(sk.FullName()))
 	}
@@ -643,7 +643,7 @@ func (c *CommandController) handleCompactCommand(_ context.Context, args string)
 	return "", tea.Batch(c.deps.SpinnerTickCmd(), conv.CompactCmd(c.deps.BuildCompactRequest(c.deps.Conversation.Compact.Focus, "manual"))), nil
 }
 
-func lookupSkill(svc skill.Service, cmd string) (*skill.Skill, bool) {
+func lookupSkill(svc *skill.Registry, cmd string) (*skill.Skill, bool) {
 	if svc == nil {
 		return nil, false
 	}

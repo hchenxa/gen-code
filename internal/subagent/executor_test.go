@@ -217,7 +217,7 @@ func TestFormatToolProgressFallsBackToTaskOutputID(t *testing.T) {
 
 func TestBuildSystemPrompt_IncludesAdditionalInstructionsAndPreloadedSkills(t *testing.T) {
 	prev := skill.DefaultIfInit()
-	t.Cleanup(func() { skill.SetDefault(prev) })
+	t.Cleanup(func() { skill.SetDefaultRegistry(prev) })
 
 	tmpDir := t.TempDir()
 	skillFile := filepath.Join(tmpDir, "SKILL.md")
@@ -239,7 +239,7 @@ Use conventional commits.
 		t.Fatalf("NewStore(project): %v", err)
 	}
 
-	skill.SetDefault(skill.NewRegistryForTest(map[string]*skill.Skill{
+	skill.SetDefaultRegistry(skill.NewRegistryForTest(map[string]*skill.Skill{
 		"git:commit": {
 			Name:      "commit",
 			Namespace: "git",

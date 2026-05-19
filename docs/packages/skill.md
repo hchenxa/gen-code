@@ -30,65 +30,53 @@ how-to-author-a-skill guide is tracked in `notes/tech-debt.md`.
 
 ## Contract
 
-The seam consumed by `internal/app` (wires `PromptSection` into the
-`skills-directory` reminder provider) and `internal/command` (slash
-command surface):
+The package exposes `*Registry` directly. Skill consumers each use a
+different subset of the registry surface — the TUI selector goes wide
+(`List` / `GetStatesAt` / `SetState`), the slash-command flow uses
+narrow lookups (`Get` / `FindByPartialName` / `GetSkillInvocationPrompt`),
+the system-prompt builder uses one method (`PromptSection`), and the
+session recorder attaches an observer (`SetStateChangeObserver`). No
+shared narrow surface ⇒ no producer-side role interface earns its keep.
 
 ```go
 package skill
 
-// Service is the public contract for the skill module.
-type Service interface {
-    // query
-    List() []*Skill                       // all loaded skills
-    Get(name string) (*Skill, bool)       // lookup by name
-    IsEnabled(name string) bool           // check if enabled
-    FindByPartialName(name string) *Skill // partial/suffix match
-    GetEnabled() []*Skill                 // all enabled or active skills
-    GetActive() []*Skill                  // all active skills (model-aware)
-    Count() int                           // total number of loaded skills
+// Registry is an opaque handle to the loaded skill set plus per-scope
+// enabled-state stores. The type is exported so callers can hold and
+// pass *Registry values; all fields are unexported.
+type Registry struct { /* internal fields */ }
 
-    // mutation
-    SetEnabled(name string, enabled bool, userLevel bool) error
-    GetDisabledAt(userLevel bool) map[string]bool
+// Query
+func (r *Registry) Get(name string) (*Skill, bool)
+func (r *Registry) FindByPartialName(name string) *Skill
+func (r *Registry) List() []*Skill
+func (r *Registry) GetEnabled() []*Skill
+func (r *Registry) GetActive() []*Skill
+func (r *Registry) Count() int
+func (r *Registry) IsEnabled(name string) bool
 
-    // rendering — body consumed by the skills-directory reminder, not
-    // the system prompt
-    PromptSection() string                       // rendered active-skills block
-    GetSkillInvocationPrompt(name string) string // full skill content for injection
+// State (used by the TUI selector)
+func (r *Registry) SetState(name string, state SkillState, userLevel bool) error
+func (r *Registry) GetStatesAt(userLevel bool) map[string]SkillState
+func (r *Registry) SetEnabled(name string, enabled bool, userLevel bool) error
+func (r *Registry) GetDisabledAt(userLevel bool) map[string]bool
 
-    // concrete access
-    Registry() *Registry
-}
+// Rendering (consumed by the skills-directory reminder provider)
+func (r *Registry) PromptSection() string
+func (r *Registry) GetSkillInvocationPrompt(name string) string
+
+// Recorder observer (used by the session recorder)
+func (r *Registry) SetStateChangeObserver(cb StateChangeObserver)
+
+// Package-level access
+func Initialize(opts Options)
+func Default() *Registry
+func DefaultIfInit() *Registry        // nil if pre-Initialize
+func SetDefaultRegistry(r *Registry)  // test-only
+func ResetDefaultRegistry()           // test-only
 
 // Skill, SkillState, SkillScope — see types.go for value types.
 ```
-
-### Known Violations
-
-Tracked for PR-3. The contract above is verbatim from today's code.
-
-- **Rule 1 (small).** **11 methods** across four concerns. Suggested split:
-  - `SkillQuery` → `List`, `Get`, `Count` (or pick three of the seven
-    query methods; consolidate `IsEnabled` / `GetEnabled` / `GetActive`
-    behind a `Filter(state SkillState)` if downstream usage permits)
-  - `SkillStateStore` → `SetEnabled`, `GetDisabledAt`
-  - `SkillPrompt` → `PromptSection`, `GetSkillInvocationPrompt`
-  - Remove `Registry()` (see Rule 7)
-- **Rule 7 (no escape hatch).** `Registry() *Registry` lets every caller
-  reach the concrete type. Drop it; if a caller needs methods that aren't
-  on `Service`, add them to the appropriate split interface or have the
-  caller depend on `*Registry` directly.
-- **Rule 5 (constructors return concrete types).** `Default()` returns
-  `Service` (interface). Should return `*Registry` if callers are
-  collaborators in the same module.
-- **Singleton via `Default()` and `DefaultIfInit()`.** Same issue as
-  `hook` and `agent`: two-flavor accessors paper over racy init. Move
-  construction into the app composition root.
-
-*Resolved in this PR:* removed the unused exported `AddPluginSkills`
-method (and its `addPluginPath` / `additionalPaths` plumbing), which
-was the only Rule 4 (anonymous struct) violation in the package.
 
 ## Internals
 
