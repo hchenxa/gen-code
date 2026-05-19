@@ -28,7 +28,7 @@ type services struct {
 	Tool     tool.Service
 	Hook     *hook.Engine
 	Session  *session.Setup
-	Skill    skill.Service
+	Skill    *skill.Registry
 	Subagent *subagent.Registry
 	Command  command.Service
 	Task     task.Service
