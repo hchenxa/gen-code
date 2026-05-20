@@ -11,7 +11,7 @@ import (
 	"github.com/genai-io/gen-code/internal/task/tracker"
 )
 
-func TestSetTokenUsageTracksLatestTurnUsage(t *testing.T) {
+func TestOnTokenUsageTracksLatestTurnUsage(t *testing.T) {
 	m := &model{}
 	m.OnTurnBegin()
 
@@ -48,7 +48,7 @@ func TestResumeCommandForSessionRequiresPersistedTranscript(t *testing.T) {
 	}
 }
 
-func TestSetTokenUsageClearsCompactedStatusOnNextInfer(t *testing.T) {
+func TestOnTokenUsageClearsCompactedStatusOnNextInfer(t *testing.T) {
 	m := &model{}
 	m.userInput.Provider.StatusMessage = "compacted"
 
@@ -59,7 +59,7 @@ func TestSetTokenUsageClearsCompactedStatusOnNextInfer(t *testing.T) {
 	}
 }
 
-func TestBeginInferTurnResetsTurnTotalsOnlyForNewTurn(t *testing.T) {
+func TestOnTurnBeginResetsTurnTotalsOnlyForNewTurn(t *testing.T) {
 	m := &model{}
 	m.env.TurnInputTokens = 1600
 	m.env.TurnOutputTokens = 105
@@ -98,7 +98,7 @@ func TestResetContextDisplayPreservesTurnTotals(t *testing.T) {
 // path that hands a user message to the agent (idle submit, drainTurnQueues,
 // cron prompt, async hook) appends to m.conv at the call site. The echo must
 // be a strict no-op or the conversation double-displays.
-func TestHandleAgentMessageIsNoOpForUserEcho(t *testing.T) {
+func TestOnAgentMessageIsNoOpForUserEcho(t *testing.T) {
 	m := &model{
 		userInput: input.Model{Queue: input.NewQueue()},
 		conv:      conv.NewModel(80),

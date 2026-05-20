@@ -89,10 +89,7 @@ func (s *SkillState) ConsumeInvocation() (displayMsg, fullMsg, pluginRoot string
 			s.PendingInstructions + "\n\n" + displayMsg
 	}
 	pluginRoot = s.PendingPluginRoot
-	s.PendingInstructions = ""
-	s.PendingArgs = ""
-	s.PendingFullName = ""
-	s.PendingPluginRoot = ""
+	s.ClearPending()
 	return displayMsg, fullMsg, pluginRoot
 }
 

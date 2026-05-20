@@ -15,7 +15,7 @@ import (
 
 var ghostTextStyle = lipgloss.NewStyle().Foreground(kit.CurrentTheme.TextDim)
 
-// View dispatches to one of three layouts, top-down:
+// View dispatches to one of four layouts, top-down:
 //
 //  1. Loading splash (env not ready yet)
 //  2. Active popup (slash-command picker / etc.) — fullscreen

@@ -26,6 +26,10 @@ import (
 	"github.com/genai-io/gen-code/internal/tool"
 )
 
+// NoProviderMsg is the canonical "no LLM provider" notice used by any
+// input path that needs to bail before reaching the agent.
+const NoProviderMsg = "No provider connected. Use /model to connect."
+
 type slashCommandHandler func(*SlashCommandController, context.Context, string) (string, tea.Cmd, error)
 
 type SlashCommandEnv struct {
@@ -183,6 +187,9 @@ func (c SlashCommandController) executeExitCommand(cmdName string) (string, tea.
 	}
 	c.env.StopAgentSession()
 	c.env.Conversation.Stream.Stop()
+	if c.env.Tool.Cancel != nil {
+		c.env.Tool.Cancel()
+	}
 	c.env.FireSessionEnd("prompt_input_exit")
 	return "", tea.Quit, true
 }
@@ -194,26 +201,8 @@ func (c SlashCommandController) executeSkillSlashCommand(sk *skill.Skill, args s
 	if c.env.Plugin != nil {
 		c.env.Input.Skill.PendingPluginRoot = plugin.FindPluginRootForPath(sk.SkillDir)
 	}
-	if args != "" {
-		c.env.Input.Skill.PendingArgs = fmt.Sprintf("/%s %s", sk.FullName(), args)
-	} else {
-		c.env.Input.Skill.PendingArgs = fmt.Sprintf("/%s", sk.FullName())
-	}
+	c.env.Input.Skill.PendingArgs = formatSlashInvocation(sk.FullName(), args)
 	return ""
-}
-
-func ApplySkillInvocation(state *Model, sk *skill.Skill, args string, skillSvc *skill.Registry, pluginSvc *plugin.Registry) {
-	if skillSvc != nil {
-		state.Skill.SetPending(sk.FullName(), skillSvc.GetSkillInvocationPrompt(sk.FullName()))
-	}
-	if pluginSvc != nil {
-		state.Skill.PendingPluginRoot = plugin.FindPluginRootForPath(sk.SkillDir)
-	}
-	if args != "" {
-		state.Skill.PendingArgs = fmt.Sprintf("/%s %s", sk.FullName(), args)
-	} else {
-		state.Skill.PendingArgs = fmt.Sprintf("/%s", sk.FullName())
-	}
 }
 
 func (c SlashCommandController) executeCustomCommand(pc *command.CustomCommand, args string) string {
@@ -281,10 +270,6 @@ func (c *SlashCommandController) handleClearCommand(_ context.Context, _ string)
 		})
 	}
 	return "", tea.Batch(cmds...), nil
-}
-
-func (c SlashCommandController) HandleClearForTests(ctx context.Context, args string) (string, tea.Cmd, error) {
-	return c.handleClearCommand(ctx, args)
 }
 
 func (c *SlashCommandController) handleForkCommand(_ context.Context, _ string) (string, tea.Cmd, error) {
@@ -627,7 +612,7 @@ func (c *SlashCommandController) handleTokenLimitCommand(_ context.Context, args
 
 func (c *SlashCommandController) handleCompactCommand(_ context.Context, args string) (string, tea.Cmd, error) {
 	if c.env.LLM.Provider() == nil {
-		return "No provider connected. Use /model to connect.", nil, nil
+		return NoProviderMsg, nil, nil
 	}
 	if len(c.env.Conversation.Messages) == 0 {
 		return "No active LLM session. Send a message first to initialize the client.", nil, nil

@@ -1,8 +1,7 @@
-// Submit dispatch — what happens when the user presses Enter.
-//
-// The whole path lives in this file. Every step is annotated with its
-// numbered position in the flow so a reader can follow Enter → agent
-// without jumping packages.
+// Submit dispatch — what happens when the user presses Enter, plus the
+// single SubmitToAgent exit point that every input path funnels through.
+// Lives entirely on *model so a reader can follow Enter → agent without
+// jumping packages.
 package app
 
 import (
@@ -155,7 +154,7 @@ func (m *model) SubmitToAgent(content string, images []core.Image) tea.Cmd {
 // notifyNoProvider posts the standard "no provider connected" notice
 // and returns a commit cmd.
 func (m *model) notifyNoProvider() tea.Cmd {
-	m.conv.AddNotice("No provider connected. Use /model to connect.")
+	m.conv.AddNotice(input.NoProviderMsg)
 	return tea.Batch(m.CommitMessages()...)
 }
 
@@ -164,11 +163,10 @@ func (m *model) notifyNoProvider() tea.Cmd {
 // (if the skill came from a plugin) is set on the agent so hooks/tools
 // fired during the turn see PLUGIN_ROOT pointing at that plugin.
 func (m *model) HandleSkillInvocation() tea.Cmd {
+	displayMsg, fullMsg, pluginRoot := m.userInput.Skill.ConsumeInvocation()
 	if m.env.LLMProvider == nil {
-		m.userInput.Skill.ClearPending()
 		return m.notifyNoProvider()
 	}
-	displayMsg, fullMsg, pluginRoot := m.userInput.Skill.ConsumeInvocation()
 	m.conv.Append(core.ChatMessage{Role: core.RoleUser, Content: fullMsg, DisplayContent: displayMsg})
 	if pluginRoot != "" {
 		m.services.Agent.SetPluginRoot(pluginRoot)
