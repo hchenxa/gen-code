@@ -94,10 +94,7 @@ func RenderPanelTabs(tabs []PanelTab, active int) string {
 		if !t.Show {
 			continue
 		}
-		label := t.Name
-		if t.Count > 0 {
-			label = fmt.Sprintf("%s %d", t.Name, t.Count)
-		}
+		label := fmt.Sprintf("%s %d", t.Name, t.Count)
 		switch {
 		case t.Disable:
 			parts = append(parts, disabledStyle.Render(label))
