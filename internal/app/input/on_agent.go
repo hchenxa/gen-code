@@ -251,15 +251,9 @@ func (s *AgentSelector) cycleTab(delta int) {
 		}
 	}
 	n := len(tabs)
-	for step := 1; step <= n; step++ {
-		next := tabs[((idx+delta*step)%n+n)%n]
-		s.activeTab = next
-		s.applyFilters()
-		// Allow landing on empty tabs only when no other tab has items.
-		if len(s.filteredAgents) > 0 || s.tabCount(next) > 0 {
-			return
-		}
-	}
+	next := tabs[((idx+delta)%n+n)%n]
+	s.activeTab = next
+	s.applyFilters()
 }
 
 func (s *AgentSelector) HandleKeypress(key tea.KeyMsg) tea.Cmd {
