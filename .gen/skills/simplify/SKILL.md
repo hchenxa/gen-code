@@ -42,7 +42,8 @@ Review the same changes for hacky patterns:
 4. **Leaky abstractions**: exposing internal details that should be encapsulated, or breaking existing abstraction boundaries
 5. **Stringly-typed code**: using raw strings where constants, enums, or typed alternatives already exist in the codebase
 6. **Unnecessary wrapper layers**: wrapper types, functions, or indirection that add no value — check if the inner component already provides the needed behavior
-7. **Unnecessary comments**: comments explaining WHAT the code does (well-named identifiers already do that), narrating the change, or referencing the task/caller — delete; keep only non-obvious WHY (hidden constraints, subtle invariants, workarounds)
+7. **Nested conditionals**: ternary chains (`a ? x : b ? y : ...`), nested if/else, or nested switch 3+ levels deep — flatten with early returns, guard clauses, a lookup table, or an if/else-if cascade
+8. **Unnecessary comments**: comments explaining WHAT the code does (well-named identifiers already do that), narrating the change, or referencing the task/caller — delete; keep only non-obvious WHY (hidden constraints, subtle invariants, workarounds)
 
 ### Agent 3: Efficiency Review
 
@@ -51,7 +52,7 @@ Review the same changes for efficiency:
 1. **Unnecessary work**: redundant computations, repeated file reads, duplicate network/API calls, N+1 patterns
 2. **Missed concurrency**: independent operations run sequentially when they could run in parallel
 3. **Hot-path bloat**: new blocking work added to startup or per-request/per-render hot paths
-4. **Recurring no-op updates**: state/store updates inside polling loops, intervals, or event handlers that fire unconditionally — add a change-detection guard so downstream consumers aren't notified when nothing changed
+4. **Recurring no-op updates**: state/store updates inside polling loops, intervals, or event handlers that fire unconditionally — add a change-detection guard so downstream consumers aren't notified when nothing changed. Also: if a wrapper function takes an updater/reducer callback, verify it honors same-reference returns (or whatever the "no change" signal is) — otherwise callers' early-return no-ops are silently defeated
 5. **Unnecessary existence checks**: pre-checking file/resource existence before operating (TOCTOU anti-pattern) — operate directly and handle the error
 6. **Memory**: unbounded data structures, missing cleanup, event listener leaks, resource handle leaks
 7. **Overly broad operations**: reading entire files when only a portion is needed, loading all items when filtering for one
