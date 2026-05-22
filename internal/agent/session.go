@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/genai-io/gen-code/internal/core"
 )
@@ -83,10 +84,18 @@ func (s *Task) Send(content string, images []core.Image) {
 	ag.Inbox() <- core.Message{Role: core.RoleUser, Content: content, Images: images}
 }
 
+// interruptDrainTimeout caps how long InterruptTurn waits for the agent
+// goroutine to actually unwind its in-flight ThinkAct. Keeping this
+// tight avoids UI stalls; if the agent is still in a slow tool the
+// caller proceeds anyway (ResyncMessages is best-effort and the next
+// inference will pull a fresh snapshot regardless).
+const interruptDrainTimeout = 250 * time.Millisecond
+
 // InterruptTurn cancels the agent's in-flight turn without ending its
-// Run loop. After interruption the agent goes back to waiting on the
-// inbox, so subsequent Send calls resume the session in place — no
-// rebuild, no Stop/Start event pair. No-op if no agent is active.
+// Run loop and waits briefly for the turn to actually unwind. After
+// this returns it is safe for the caller to mutate shared agent state
+// (e.g. via ResyncMessages) without racing the agent goroutine's own
+// appends.
 //
 // Also clears pendingPermRequest: a permission prompt that was open at
 // the moment of interrupt is dropped along with the turn, so the
@@ -102,7 +111,11 @@ func (s *Task) InterruptTurn() {
 	if ag == nil {
 		return
 	}
-	ag.InterruptCurrentTurn()
+	done := ag.InterruptCurrentTurn()
+	select {
+	case <-done:
+	case <-time.After(interruptDrainTimeout):
+	}
 }
 
 // ResyncMessages replaces the running agent's conversation history with

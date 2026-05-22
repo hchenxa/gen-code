@@ -83,10 +83,17 @@ type Agent interface {
 
 	// InterruptCurrentTurn cancels the in-flight ThinkAct without ending
 	// Run. After interruption the run loop returns to waitForInput and
-	// resumes normally on the next inbox message. No-op if no turn is in
-	// flight. Use this for user-initiated mid-stream cancellation; use
-	// SigStop / ctx cancel for full shutdown.
-	InterruptCurrentTurn()
+	// resumes normally on the next inbox message. Use this for
+	// user-initiated mid-stream cancellation; use SigStop / ctx cancel
+	// for full shutdown.
+	//
+	// Returns a channel that closes when the in-flight ThinkAct has
+	// actually returned, so callers that need to mutate shared state
+	// right after the interrupt can serialize against the agent
+	// goroutine. When called between turns the channel is already
+	// closed and the interrupt is latched so the next iteration of the
+	// inner loop bails before starting an unwanted ThinkAct.
+	InterruptCurrentTurn() <-chan struct{}
 }
 
 // Config holds construction parameters for an agent.

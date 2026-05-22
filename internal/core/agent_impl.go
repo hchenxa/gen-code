@@ -35,10 +35,27 @@ type agent struct {
 
 	closed atomic.Bool // guards outbox writes after close
 
-	// turnCancel cancels the ctx of the in-flight ThinkAct without ending
-	// Run. Stored as a pointer so swap-with-nil acts as an atomic claim
-	// — concurrent InterruptCurrentTurn calls become no-ops.
-	turnCancel atomic.Pointer[context.CancelFunc]
+	// turn captures the in-flight ThinkAct so InterruptCurrentTurn can
+	// cancel it and the caller can wait for it to actually return. Stored
+	// as a pointer so swap-with-nil acts as an atomic claim — concurrent
+	// InterruptCurrentTurn calls become no-ops.
+	turn atomic.Pointer[turnHandle]
+
+	// interruptPending latches an interrupt that arrived while Run was
+	// between iterations (turn pointer was momentarily nil). The next
+	// inner-loop iteration checks the latch and bails back to
+	// waitForInput rather than starting a new ThinkAct that the user
+	// already asked not to run.
+	interruptPending atomic.Bool
+}
+
+// turnHandle binds the per-turn cancel function to a done channel so an
+// outside caller (Task.InterruptTurn) can both cancel the turn and wait
+// for ThinkAct to actually unwind before mutating shared state (e.g.
+// ResyncMessages overwriting a.messages).
+type turnHandle struct {
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 type agentToolTask struct {
@@ -60,9 +77,38 @@ func (a *agent) Messages() []Message   { return a.snapshot() }
 
 func (a *agent) SetMessages(msgs []Message) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
+	known := make(map[string]struct{}, len(a.messages))
+	for _, m := range a.messages {
+		if m.ID != "" {
+			known[m.ID] = struct{}{}
+		}
+	}
 	a.messages = make([]Message, len(msgs))
 	copy(a.messages, msgs)
+	// Snapshot the just-introduced messages while still holding the
+	// write lock so the OnAppend emission below sees a stable set even
+	// if another SetMessages races. Emit OUTSIDE the lock — onEvent
+	// handlers may do I/O (recorder writes).
+	var fresh []Message
+	for _, m := range msgs {
+		if m.ID == "" {
+			continue
+		}
+		if _, seen := known[m.ID]; seen {
+			continue
+		}
+		fresh = append(fresh, m)
+	}
+	a.mu.Unlock()
+
+	// Without these emits the session recorder (which hooks OnAppend)
+	// never persists the cancellation bookkeeping that handleStreamCancel
+	// pushes into the agent via ResyncMessages — the next
+	// inference.requested then references MessageIDs that have no
+	// matching message.appended row and replay integrity fails.
+	for _, m := range fresh {
+		a.emitAppend(m)
+	}
 }
 
 // Append adds a message to the conversation and fires the OnMessage hook.
@@ -103,17 +149,32 @@ func (a *agent) Run(ctx context.Context) error {
 		glog.QueueLog("agent.Run: waitForInput received message")
 
 		for {
+			// Consume any interrupt that landed between turns: when Run
+			// is between ThinkAct calls the turn pointer is nil, so
+			// InterruptCurrentTurn's Swap returns nil and would silently
+			// drop the cancel. The latch captures that case and bails
+			// here instead of starting an unwanted new inference.
+			if a.interruptPending.Swap(false) {
+				glog.QueueLog("agent.Run: interrupt latched between turns, resuming wait")
+				break
+			}
+
 			glog.QueueLog("agent.Run: starting ThinkAct")
 			turnCtx, turnCancel := context.WithCancel(ctx)
-			a.turnCancel.Store(&turnCancel)
+			h := &turnHandle{cancel: turnCancel, done: make(chan struct{})}
+			a.turn.Store(h)
 
 			result, err := a.ThinkAct(turnCtx)
 
 			// Detach before cancelling so a racing InterruptCurrentTurn
 			// becomes a no-op rather than cancelling the next turn.
-			if a.turnCancel.CompareAndSwap(&turnCancel, nil) {
+			if a.turn.CompareAndSwap(h, nil) {
 				turnCancel()
 			}
+			// Signal "turn fully unwound" — Task.InterruptTurn waits on
+			// this so its follow-up ResyncMessages cannot race against
+			// the agent's own appends from inside ThinkAct.
+			close(h.done)
 
 			if result != nil {
 				glog.QueueLog("agent.Run: ThinkAct done, emitting TurnEvent")
@@ -129,6 +190,8 @@ func (a *agent) Run(ctx context.Context) error {
 				// waitForInput instead of tearing down Run.
 				if ctx.Err() == nil && errors.Is(err, context.Canceled) {
 					glog.QueueLog("agent.Run: turn interrupted by user, resuming wait")
+					// The interrupt that drove this cancel is now consumed.
+					a.interruptPending.Store(false)
 					break
 				}
 				runErr = err
@@ -152,12 +215,24 @@ func (a *agent) Run(ctx context.Context) error {
 }
 
 // InterruptCurrentTurn cancels the ctx of the currently-running ThinkAct
-// without ending Run. After cancellation the run loop returns to
-// waitForInput. No-op if no turn is in flight.
-func (a *agent) InterruptCurrentTurn() {
-	if cancel := a.turnCancel.Swap(nil); cancel != nil {
-		(*cancel)()
+// without ending Run. Returns a channel that closes when the in-flight
+// ThinkAct has fully unwound — callers that need to mutate shared agent
+// state right after the interrupt (e.g. ResyncMessages overwriting
+// a.messages) should wait on the channel first to avoid racing the
+// agent goroutine's own appends.
+//
+// When called between turns (turn pointer is nil), latches the
+// interrupt so the next inner-loop iteration bails before starting a
+// fresh ThinkAct, and returns an already-closed channel.
+func (a *agent) InterruptCurrentTurn() <-chan struct{} {
+	a.interruptPending.Store(true)
+	if h := a.turn.Swap(nil); h != nil {
+		h.cancel()
+		return h.done
 	}
+	closed := make(chan struct{})
+	close(closed)
+	return closed
 }
 
 var errStopped = errors.New("stopped")
