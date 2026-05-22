@@ -13,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/genai-io/gen-code/internal/app/input"
 	"github.com/genai-io/gen-code/internal/core"
 	"github.com/genai-io/gen-code/internal/llm"
 	"github.com/genai-io/gen-code/internal/llm/deepseek"
@@ -109,6 +110,27 @@ func (m *model) OnTurnEnd(result core.Result) tea.Cmd {
 	if cmd, found := m.drainTurnQueues(); found {
 		log.QueueLog("OnTurnEnd: drained queued message, skipping hooks")
 		if cmd != nil {
+			commitCmds = append(commitCmds, cmd)
+		}
+		commitCmds = append(commitCmds, m.ContinueOutbox())
+		return tea.Batch(commitCmds...)
+	}
+
+	// User-initiated cancel surfaces here as a Result with StopCancelled now
+	// that ThinkAct returns a phantom Result on context.Canceled. Stop /
+	// idle-notification hooks would otherwise fire on every Esc — confusing
+	// for the user and for hooks that template result.Content (which is
+	// empty for a cancelled turn). We still persist so the [Interrupted]
+	// marker and cancelled tool_result rows survive a crash/quit, and
+	// re-arm prompt suggestions for the now-idle textarea.
+	if result.StopReason == core.StopCancelled {
+		log.QueueLog("OnTurnEnd: turn was cancelled, skipping idle hooks")
+		if m.services.Session.ID() != "" {
+			commitCmds = append(commitCmds, m.persistSessionCmd())
+		} else if err := m.PersistSession(); err != nil {
+			log.QueueLog("OnTurnEnd: persist after cancel failed: %v", err)
+		}
+		if cmd := input.StartPromptSuggestion(m.promptSuggestionDeps()); cmd != nil {
 			commitCmds = append(commitCmds, cmd)
 		}
 		commitCmds = append(commitCmds, m.ContinueOutbox())

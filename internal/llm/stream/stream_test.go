@@ -13,10 +13,10 @@ func TestStateEmitsAndAccumulatesChunks(t *testing.T) {
 	ch := make(chan llm.StreamChunk, 8)
 	state := NewState("test")
 
-	state.EmitText(ch, "hello")
-	state.EmitThinking(ch, "thinking")
-	state.EmitToolStart(ch, "tool-1", "Read")
-	state.EmitToolInput(ch, "tool-1", `{"path":"a.go"}`)
+	state.EmitText(context.Background(), ch, "hello")
+	state.EmitThinking(context.Background(), ch, "thinking")
+	state.EmitToolStart(context.Background(), ch, "tool-1", "Read")
+	state.EmitToolInput(context.Background(), ch, "tool-1", `{"path":"a.go"}`)
 
 	// Verify streaming chunks emitted in order
 	msgs := []llm.StreamChunk{<-ch, <-ch, <-ch, <-ch}
@@ -95,10 +95,10 @@ func TestStateFailAndFinishEmitTerminalChunks(t *testing.T) {
 	state := NewState("test")
 
 	// Accumulate content via EmitText (content flushes in Finish)
-	state.EmitText(ch, "done")
+	state.EmitText(context.Background(), ch, "done")
 	<-ch // drain the text chunk
 
-	state.Fail(ch, errors.New("boom"))
+	state.Fail(context.Background(), ch, errors.New("boom"))
 	errChunk := <-ch
 	if errChunk.Type != llm.ChunkTypeError || errChunk.Error == nil || errChunk.Error.Error() != "boom" {
 		t.Fatalf("unexpected error chunk: %#v", errChunk)

@@ -217,22 +217,22 @@ func (c *Client) Stream(ctx context.Context, opts llm.CompletionOptions) <-chan 
 					currentToolID = block.ContentBlock.ID
 					currentToolName = block.ContentBlock.Name
 					currentToolInput.Reset()
-					state.EmitToolStart(ch, currentToolID, currentToolName)
+					state.EmitToolStart(ctx, ch, currentToolID, currentToolName)
 				}
 
 			case "content_block_delta":
 				delta := event.AsContentBlockDelta()
 				switch delta.Delta.Type {
 				case "text_delta":
-					state.EmitText(ch, delta.Delta.Text)
+					state.EmitText(ctx, ch, delta.Delta.Text)
 				case "thinking_delta":
-					state.EmitThinking(ch, delta.Delta.Thinking)
+					state.EmitThinking(ctx, ch, delta.Delta.Thinking)
 				case "signature_delta":
 					if delta.Delta.Signature != "" {
 						state.Response.ThinkingSignature += delta.Delta.Signature
 					}
 				case "input_json_delta":
-					state.EmitToolInput(ch, currentToolID, delta.Delta.PartialJSON)
+					state.EmitToolInput(ctx, ch, currentToolID, delta.Delta.PartialJSON)
 					currentToolInput.WriteString(delta.Delta.PartialJSON)
 				}
 
@@ -266,7 +266,7 @@ func (c *Client) Stream(ctx context.Context, opts llm.CompletionOptions) <-chan 
 		}
 
 		if err := stream.Err(); err != nil {
-			state.Fail(ch, err)
+			state.Fail(ctx, ch, err)
 			return
 		}
 

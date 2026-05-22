@@ -95,7 +95,7 @@ func SanitizeToolMessages(msgs []core.Message) []core.Message {
 		}
 
 		msg.ToolCalls = filteredCalls
-		if len(msg.ToolCalls) > 0 || msg.Content != "" || msg.Thinking != "" {
+		if len(msg.ToolCalls) > 0 || msg.Content != "" {
 			result = append(result, msg)
 		}
 
@@ -127,13 +127,16 @@ func DropEmptyMessages(msgs []core.Message) []core.Message {
 }
 
 func messageHasProviderContent(msg core.Message) bool {
-	if strings.TrimSpace(msg.Content) != "" || strings.TrimSpace(msg.Thinking) != "" {
+	// Assistant messages must carry content or tool_calls; reasoning_content
+	// alone does not satisfy Chat Completions validation (DeepSeek rejects
+	// with "Invalid assistant message: content or tool_calls must be set").
+	if msg.Role == core.RoleAssistant {
+		return strings.TrimSpace(msg.Content) != "" || len(msg.ToolCalls) > 0
+	}
+	if strings.TrimSpace(msg.Content) != "" {
 		return true
 	}
-	if len(msg.Images) > 0 || len(msg.ToolCalls) > 0 || msg.ToolResult != nil {
-		return true
-	}
-	return false
+	return len(msg.Images) > 0 || msg.ToolResult != nil
 }
 
 func convertToolResultMessage(msg core.Message) openai.ChatCompletionMessageParamUnion {

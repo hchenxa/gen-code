@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/genai-io/gen-code/internal/core"
 )
@@ -81,6 +82,44 @@ func (s *Task) Send(content string, images []core.Image) {
 		return
 	}
 	ag.Inbox() <- core.Message{Role: core.RoleUser, Content: content, Images: images}
+}
+
+// interruptDrainTimeout caps how long InterruptTurn waits for the agent
+// goroutine to actually unwind its in-flight ThinkAct. Keeping this
+// tight avoids UI stalls; if the agent is still in a slow tool the
+// caller proceeds anyway — provider-side convert layers strip any
+// orphaned tool_use blocks before the next inference fires.
+const interruptDrainTimeout = 250 * time.Millisecond
+
+// InterruptTurn cancels the agent's in-flight turn without ending its
+// Run loop and waits briefly for the turn to actually unwind. The next
+// Send goes through the same inbox channel and resumes the session in
+// place — no rebuild, no Stop/Start event pair.
+//
+// Also clears pendingPermRequest: a permission prompt that was open at
+// the moment of interrupt is dropped along with the turn, so the
+// dangling *PermBridgeRequest must not survive into the next turn (a
+// later SetPendingPermission would then race a stale request against a
+// fresh one). The clear runs AFTER the agent quiesces so an in-flight
+// PermissionFunc can't repopulate pendingPermRequest via PollPermBridge
+// → SetPendingPermission between the clear and the cancel.
+func (s *Task) InterruptTurn() {
+	s.mu.RLock()
+	ag := s.agent
+	s.mu.RUnlock()
+	if ag == nil {
+		return
+	}
+	done := ag.InterruptCurrentTurn()
+	timer := time.NewTimer(interruptDrainTimeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
+	s.mu.Lock()
+	s.pendingPermRequest = nil
+	s.mu.Unlock()
 }
 
 func (s *Task) Outbox() <-chan core.Event {

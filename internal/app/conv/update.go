@@ -165,6 +165,13 @@ func applyChunk(rt Runtime, m *Model, ev core.Event) tea.Cmd {
 	if !ok {
 		return nil
 	}
+	// Late chunks after handleStreamCancel has flipped Stream off and
+	// appended the [Interrupted] marker would otherwise call AppendToLast
+	// and bleed text past the marker. RenderAssistantMessage's suffix
+	// strip then fails and a literal "[Interrupted]" renders inline.
+	if !m.Stream.Active {
+		return nil
+	}
 	if chunk.Text != "" || chunk.Thinking != "" {
 		m.AppendToLast(chunk.Text, chunk.Thinking)
 	}
@@ -185,6 +192,13 @@ func applyPostInfer(rt Runtime, m *Model, ev core.Event) tea.Cmd {
 	}
 	rt.OnTokenUsage(resp)
 	m.Compact.WarningSuppressed = false
+	// No Stream.Active guard: SetLastThinkingSignature / SetLastToolCalls
+	// already bail on non-assistant tails, which is the only way a late
+	// PostInfer could corrupt conv state (after cancelPendingToolCalls
+	// appended user-role rows). A guard on Stream.Active would also
+	// suppress these setters for normal text-only completions, since
+	// applyChunk flips Stream.Active=false on the Done chunk that arrives
+	// just before this PostInfer — silently dropping ThinkingSignature.
 	if resp.ThinkingSignature != "" {
 		m.SetLastThinkingSignature(resp.ThinkingSignature)
 	}
@@ -213,6 +227,18 @@ func applyPostTool(rt Runtime, m *Model, ev core.Event) tea.Cmd {
 		m.TaskProgress = nil
 	}
 	m.Tool.MarkComplete(tr.ToolCallID)
+	// A tool that completed just before the user pressed Esc may have its
+	// PostToolEvent still buffered in the outbox when handleStreamCancel
+	// runs — cancelPendingToolCalls then writes a cancelled-result row for
+	// the same ToolCallID. When the buffered event finally drains we'd
+	// double-append. Skip if conv already carries a result for this call.
+	if tr.ToolCallID != "" {
+		for i := range m.Messages {
+			if existing := m.Messages[i].ToolResult; existing != nil && existing.ToolCallID == tr.ToolCallID {
+				return nil
+			}
+		}
+	}
 	result := rt.OnToolResult(tr)
 	m.Append(core.ChatMessage{
 		Role:       core.RoleUser,

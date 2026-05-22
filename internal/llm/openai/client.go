@@ -176,15 +176,15 @@ func (c *Client) streamResponses(ctx context.Context, opts llm.CompletionOptions
 			switch event.Type {
 			case "response.output_text.delta":
 				delta := event.AsResponseOutputTextDelta()
-				state.EmitText(ch, delta.Delta)
+				state.EmitText(ctx, ch, delta.Delta)
 
 			case "response.reasoning_summary_text.delta":
 				delta := event.AsResponseReasoningSummaryTextDelta()
-				state.EmitThinking(ch, delta.Delta)
+				state.EmitThinking(ctx, ch, delta.Delta)
 
 			case "response.reasoning_text.delta":
 				delta := event.AsResponseReasoningTextDelta()
-				state.EmitThinking(ch, delta.Delta)
+				state.EmitThinking(ctx, ch, delta.Delta)
 
 			case "response.output_item.added":
 				itemEvent := event.AsResponseOutputItemAdded()
@@ -195,14 +195,14 @@ func (c *Client) streamResponses(ctx context.Context, opts llm.CompletionOptions
 						ID:   funcCall.CallID,
 						Name: funcCall.Name,
 					}
-					state.EmitToolStart(ch, funcCall.CallID, funcCall.Name)
+					state.EmitToolStart(ctx, ch, funcCall.CallID, funcCall.Name)
 				}
 
 			case "response.function_call_arguments.delta":
 				delta := event.AsResponseFunctionCallArgumentsDelta()
 				if tc, ok := toolCalls[delta.ItemID]; ok {
 					tc.Input += delta.Delta
-					state.EmitToolInput(ch, tc.ID, delta.Delta)
+					state.EmitToolInput(ctx, ch, tc.ID, delta.Delta)
 				}
 
 			case "response.completed":
@@ -227,7 +227,7 @@ func (c *Client) streamResponses(ctx context.Context, opts llm.CompletionOptions
 					if resp.Error.Message != "" {
 						errMsg = resp.Error.Message
 					}
-					state.Fail(ch, fmt.Errorf("responses API failed: %s", errMsg))
+					state.Fail(ctx, ch, fmt.Errorf("responses API failed: %s", errMsg))
 					return
 				default:
 					state.Response.StopReason = string(resp.Status)
@@ -235,13 +235,13 @@ func (c *Client) streamResponses(ctx context.Context, opts llm.CompletionOptions
 
 			case "error":
 				errEvent := event.AsError()
-				state.Fail(ch, fmt.Errorf("responses API error: %s", errEvent.Message))
+				state.Fail(ctx, ch, fmt.Errorf("responses API error: %s", errEvent.Message))
 				return
 			}
 		}
 
 		if err := stream.Err(); err != nil {
-			state.Fail(ch, openaicompat.NormalizeAPIError(c.name, err))
+			state.Fail(ctx, ch, openaicompat.NormalizeAPIError(c.name, err))
 			return
 		}
 

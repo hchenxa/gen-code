@@ -131,6 +131,46 @@ func (s *Service) Enqueue(body string) {
 	s.pending = append(s.pending, pendingEntry{wrapped: wrapped})
 }
 
+// DiscardPendingAdHoc drops every pending entry that was queued via Enqueue /
+// EnqueueOnce (providerID==""). Used by /compact: the cancelled assistant or
+// hook output that originally produced these reminders has been summarized
+// out of the conversation, so the reminder no longer matches what the model
+// sees. Provider entries are preserved.
+func (s *Service) DiscardPendingAdHoc() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.pending) == 0 {
+		return
+	}
+	kept := s.pending[:0]
+	for _, e := range s.pending {
+		if e.providerID != "" {
+			kept = append(kept, e)
+		}
+	}
+	s.pending = kept
+}
+
+// EnqueueOnce is like Enqueue but skips bodies that are already pending. Used
+// for signals where multiple triggers in a row (e.g. mashed Esc keys all
+// enqueuing the same cancel reminder) should still produce a single copy on
+// the next user message.
+func (s *Service) EnqueueOnce(body string) {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return
+	}
+	wrapped := Wrap(body)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, existing := range s.pending {
+		if existing.providerID == "" && existing.wrapped == wrapped {
+			return
+		}
+	}
+	s.pending = append(s.pending, pendingEntry{wrapped: wrapped})
+}
+
 // EnqueueAllProviders renders every registered provider and queues the
 // non-empty bodies. Idempotent across repeated calls: any prior pending
 // entry from the same provider is dropped before re-emitting, so SessionStart

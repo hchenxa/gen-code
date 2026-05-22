@@ -34,6 +34,29 @@ type agent struct {
 	messages []Message // conversation history
 
 	closed atomic.Bool // guards outbox writes after close
+
+	// turn captures the in-flight ThinkAct so InterruptCurrentTurn can
+	// cancel it and the caller can wait for it to actually return. Stored
+	// as a pointer so swap-with-nil acts as an atomic claim — concurrent
+	// InterruptCurrentTurn calls become no-ops.
+	turn atomic.Pointer[turnHandle]
+
+	// interruptPending latches an interrupt that arrived while Run was
+	// between iterations (turn pointer was momentarily nil). The next
+	// inner-loop iteration checks the latch and bails back to
+	// waitForInput rather than starting a new ThinkAct that the user
+	// already asked not to run.
+	interruptPending atomic.Bool
+}
+
+// turnHandle binds the per-turn cancel function to a done channel so an
+// outside caller (Task.InterruptTurn) can both cancel the turn and wait
+// for ThinkAct to actually unwind before resuming work that depends on
+// the agent goroutine being quiescent (e.g. clearing pendingPermRequest
+// without racing an in-flight PermissionFunc write).
+type turnHandle struct {
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 type agentToolTask struct {
@@ -67,6 +90,10 @@ func (a *agent) Append(ctx context.Context, msg Message) {
 
 // Run is the agent's main loop: wait for input → think+act → repeat.
 // Outbox is closed when Run returns. Inbox is NOT closed (caller owns it).
+//
+// Each ThinkAct call runs under a per-turn ctx derived from Run's ctx so
+// InterruptCurrentTurn can cancel the in-flight turn without ending the
+// loop. Parent-ctx cancellation still ends Run.
 func (a *agent) Run(ctx context.Context) error {
 	a.emit(ctx, StartEvent(a.id))
 
@@ -95,7 +122,12 @@ func (a *agent) Run(ctx context.Context) error {
 
 		for {
 			glog.QueueLog("agent.Run: starting ThinkAct")
-			result, err := a.ThinkAct(ctx)
+			result, err, interrupted := a.runOneTurn(ctx)
+			if interrupted {
+				glog.QueueLog("agent.Run: interrupt latched, resuming wait")
+				break
+			}
+
 			if result != nil {
 				glog.QueueLog("agent.Run: ThinkAct done, emitting TurnEvent")
 				a.emit(ctx, TurnEvent(a.id, *result))
@@ -104,6 +136,23 @@ func (a *agent) Run(ctx context.Context) error {
 				glog.QueueLog("agent.Run: ThinkAct error: %v", err)
 				if err == errStopped {
 					return nil
+				}
+				// Turn-only interrupt: parent ctx still alive, the turn's
+				// ctx was cancelled by InterruptCurrentTurn. Just bail
+				// back to waitForInput — provider-side convert layers
+				// already strip any orphaned tool_use blocks left in
+				// a.messages, and the UI attaches a "previous turn was
+				// interrupted" reminder onto the next user message so
+				// the model knows the prior response did not complete.
+				if ctx.Err() == nil && errors.Is(err, context.Canceled) {
+					glog.QueueLog("agent.Run: turn interrupted by user, resuming wait")
+					// Consume the latch that triggered this cancel so the
+					// next user message can start a fresh turn. Narrow
+					// race: a brand-new Interrupt that arrives between
+					// close(h.done) and this Store can be clobbered; the
+					// 2nd Esc is treated as a duplicate of the first.
+					a.interruptPending.Store(false)
+					break
 				}
 				runErr = err
 				return err
@@ -123,6 +172,57 @@ func (a *agent) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// runOneTurn runs a single ThinkAct under a per-turn cancellable ctx and
+// returns whether an interrupt was latched (instead of running the turn).
+//
+// The latch is checked AFTER publishing turn=h so that any concurrent
+// InterruptCurrentTurn is honored exactly once:
+//   - If InterruptCurrentTurn ran BEFORE our Store, its Swap saw turn=nil
+//     and set interruptPending=true; our post-Store Swap reads it.
+//   - If InterruptCurrentTurn ran AFTER our Store, its Swap saw turn=h
+//     and cancelled turnCtx; ThinkAct exits via context.Canceled.
+//
+// Cleanup (detach + close(done)) is deferred so a panic in ThinkAct still
+// releases turnCtx and signals waiters in Task.InterruptTurn.
+func (a *agent) runOneTurn(ctx context.Context) (*Result, error, bool) {
+	turnCtx, turnCancel := context.WithCancel(ctx)
+	h := &turnHandle{cancel: turnCancel, done: make(chan struct{})}
+	a.turn.Store(h)
+	defer func() {
+		if a.turn.CompareAndSwap(h, nil) {
+			turnCancel()
+		}
+		close(h.done)
+	}()
+
+	if a.interruptPending.Swap(false) {
+		return nil, nil, true
+	}
+
+	result, err := a.ThinkAct(turnCtx)
+	return result, err, false
+}
+
+// InterruptCurrentTurn cancels the ctx of the currently-running ThinkAct
+// without ending Run. Returns a channel that closes when the in-flight
+// ThinkAct has fully unwound — callers that need to observe a quiescent
+// agent (e.g. before mutating shared state that the agent goroutine
+// might also touch) should wait on the channel.
+//
+// When called between turns (turn pointer is nil), latches the
+// interrupt so the next inner-loop iteration bails before starting a
+// fresh ThinkAct, and returns an already-closed channel.
+func (a *agent) InterruptCurrentTurn() <-chan struct{} {
+	a.interruptPending.Store(true)
+	if h := a.turn.Swap(nil); h != nil {
+		h.cancel()
+		return h.done
+	}
+	closed := make(chan struct{})
+	close(closed)
+	return closed
 }
 
 var errStopped = errors.New("stopped")
@@ -215,6 +315,12 @@ func (a *agent) ThinkAct(ctx context.Context) (*Result, error) {
 			// Reactive compaction: if prompt too long, compact and retry
 			if a.compactFunc != nil && isPromptTooLong(err) && a.compact(ctx) {
 				continue
+			}
+			// On turn cancellation, return a Result so observers see a
+			// turn boundary with StopCancelled. The error is still
+			// propagated so Run's loop can branch on it.
+			if errors.Is(err, context.Canceled) {
+				return makeResult("", StopCancelled, ""), err
 			}
 			return nil, err
 		}
@@ -314,9 +420,15 @@ func (a *agent) execTools(ctx context.Context, calls []ToolCall) int {
 		wg.Wait()
 	}
 
-	// Phase 3: Record results in order + PostTool hooks
+	// Phase 3: Record results in order + PostTool hooks. Bail on ctx cancel
+	// so an InterruptCurrentTurn that lands mid-batch does not keep
+	// appending tool results into a.messages after the UI's cancel handler
+	// has already written its own cancelled-tool-result entries.
 	var toolUses int
 	for i, t := range tasks {
+		if ctx.Err() != nil {
+			break
+		}
 		r := results[i]
 		if r.err != nil {
 			a.appendResult(t.call, r.err.Error(), true)
@@ -450,6 +562,15 @@ func (a *agent) streamInfer(ctx context.Context) (*InferResponse, error) {
 		select {
 		case chunk, ok := <-chunks:
 			if !ok {
+				// ctx-cancellation racing the bridge's defer close(ch)
+				// produces both ok==false and ctx.Done() ready at the
+				// same time — select picks randomly. Check ctx.Err()
+				// first so a cancel is always reported as
+				// context.Canceled, never as "stream closed without
+				// response" (which Run does not treat as an interrupt).
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
 				if resp == nil {
 					return nil, fmt.Errorf("infer: stream closed without response")
 				}

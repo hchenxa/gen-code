@@ -66,15 +66,28 @@ func (m *ConversationModel) AppendToLast(text, thinking string) {
 }
 
 func (m *ConversationModel) SetLastToolCalls(calls []core.ToolCall) {
-	if len(m.Messages) > 0 {
-		m.Messages[len(m.Messages)-1].ToolCalls = calls
+	if len(m.Messages) == 0 {
+		return
 	}
+	last := &m.Messages[len(m.Messages)-1]
+	// Defensive: tool_calls only belong on an assistant message. Without
+	// this check, a late PostInfer event landing after the cancel handler
+	// has appended a trailing user marker would corrupt that marker.
+	if last.Role != core.RoleAssistant {
+		return
+	}
+	last.ToolCalls = calls
 }
 
 func (m *ConversationModel) SetLastThinkingSignature(sig string) {
-	if len(m.Messages) > 0 && sig != "" {
-		m.Messages[len(m.Messages)-1].ThinkingSignature = sig
+	if sig == "" || len(m.Messages) == 0 {
+		return
 	}
+	last := &m.Messages[len(m.Messages)-1]
+	if last.Role != core.RoleAssistant {
+		return
+	}
+	last.ThinkingSignature = sig
 }
 
 func (m *ConversationModel) AppendErrorToLast(err error) {
@@ -115,9 +128,9 @@ func (m *ConversationModel) MarkLastInterrupted() {
 		}
 		if len(msg.ToolCalls) == 0 {
 			if msg.Content == "" {
-				msg.Content = "[Interrupted]"
+				msg.Content = InterruptedMarker
 			} else {
-				msg.Content += " [Interrupted]"
+				msg.Content += " " + InterruptedMarker
 			}
 		}
 		return

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openai/openai-go/v3"
+
 	"github.com/genai-io/gen-code/internal/core"
 )
 
@@ -129,6 +131,46 @@ func TestDropEmptyMessagesRemovesTextOnlyEmptyUserMessages(t *testing.T) {
 	}
 	if len(filtered[3].ToolCalls) != 1 {
 		t.Fatalf("expected assistant tool call to remain, got %#v", filtered[3])
+	}
+}
+
+func TestDropEmptyMessagesDropsThinkingOnlyAssistantMessage(t *testing.T) {
+	msgs := []core.Message{
+		{Role: core.RoleUser, Content: "hi"},
+		{Role: core.RoleAssistant, Thinking: "pondering..."},
+		{Role: core.RoleUser, Content: "are you there?"},
+	}
+
+	filtered := DropEmptyMessages(msgs)
+	if len(filtered) != 2 {
+		t.Fatalf("expected thinking-only assistant message to be dropped, got %d: %#v", len(filtered), filtered)
+	}
+	if filtered[0].Content != "hi" || filtered[1].Content != "are you there?" {
+		t.Fatalf("unexpected surviving messages: %#v", filtered)
+	}
+}
+
+func TestConvertMessagesOmitsThinkingOnlyAssistantToAvoidDeepSeek400(t *testing.T) {
+	msgs := []core.Message{
+		{Role: core.RoleUser, Content: "list files"},
+		{Role: core.RoleAssistant, Thinking: "thinking about it"},
+		{Role: core.RoleUser, Content: "1.18.1?"},
+	}
+
+	converted := ConvertMessages(msgs, "", func(msg core.Message) openai.ChatCompletionMessageParamUnion {
+		return AssistantMessageWithReasoning(msg, msg.Thinking)
+	})
+	raw, err := json.Marshal(converted)
+	if err != nil {
+		t.Fatalf("marshal converted messages: %v", err)
+	}
+	got := string(raw)
+
+	if strings.Contains(got, `"reasoning_content"`) {
+		t.Fatalf("thinking-only assistant message must be dropped to avoid invalid Chat Completions payload:\n%s", got)
+	}
+	if strings.Contains(got, `"role":"assistant"`) {
+		t.Fatalf("no assistant message should remain in the payload:\n%s", got)
 	}
 }
 

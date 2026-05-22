@@ -69,16 +69,32 @@ func (l *Client) Infer(ctx context.Context, req core.InferRequest) (<-chan core.
 	ch := make(chan core.Chunk, 8)
 	go func() {
 		defer close(ch)
+		// send forwards a chunk, aborting on ctx cancellation so this bridge
+		// goroutine doesn't wedge when streamInfer exits via its ctx.Done.
+		send := func(chunk core.Chunk) bool {
+			select {
+			case ch <- chunk:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
 		for sc := range srcCh {
 			switch sc.Type {
 			case ChunkTypeText:
-				ch <- core.Chunk{Text: sc.Text}
+				if !send(core.Chunk{Text: sc.Text}) {
+					return
+				}
 			case ChunkTypeThinking:
-				ch <- core.Chunk{Thinking: sc.Text}
+				if !send(core.Chunk{Thinking: sc.Text}) {
+					return
+				}
 			case ChunkTypeDone:
-				ch <- core.Chunk{Done: true, Response: toInferResponse(sc.Response)}
+				if !send(core.Chunk{Done: true, Response: toInferResponse(sc.Response)}) {
+					return
+				}
 			case ChunkTypeError:
-				ch <- core.Chunk{Err: sc.Error}
+				send(core.Chunk{Err: sc.Error})
 				return
 			}
 		}

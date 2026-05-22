@@ -329,12 +329,30 @@ type AssistantParams struct {
 	ExecutingTool     string
 }
 
+// InterruptedMarker is the literal suffix MarkLastInterrupted appends to an
+// assistant message's Content when the user cancels mid-stream. It lives on
+// the conv-side ChatMessage only — handleStreamCancel no longer pushes conv
+// state back into the agent, so the marker reaches the LLM only via session
+// save+reload. Stripped at render time so the UI shows a styled badge
+// instead of inline text.
+const InterruptedMarker = "[Interrupted]"
+
 // RenderAssistantMessage renders an assistant message with thinking, content, and tool calls.
 func RenderAssistantMessage(params AssistantParams) string {
 	var sb strings.Builder
 	aiIcon := aiPromptStyle.Render("● ")
 	if params.StreamActive && params.IsLast {
 		aiIcon = aiPromptStyle.Render(params.SpinnerView + " ")
+	}
+
+	interrupted := false
+	switch {
+	case strings.HasSuffix(params.Content, " "+InterruptedMarker):
+		params.Content = strings.TrimSuffix(params.Content, " "+InterruptedMarker)
+		interrupted = true
+	case params.Content == InterruptedMarker:
+		params.Content = ""
+		interrupted = true
 	}
 
 	if params.Thinking != "" {
@@ -356,6 +374,10 @@ func RenderAssistantMessage(params AssistantParams) string {
 	content := formatAssistantContent(params)
 	if content != "" {
 		sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, aiIcon, content) + "\n")
+	}
+
+	if interrupted {
+		sb.WriteString("  " + ThinkingStyle.Render("⏸ interrupted by user") + "\n")
 	}
 
 	return sb.String()

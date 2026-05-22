@@ -65,22 +65,22 @@ func StreamChatCompletions(ctx context.Context, cfg ChatStreamConfig) <-chan llm
 			for _, choice := range chunk.Choices {
 				if cfg.ExtractReasoning {
 					if content := ExtractReasoningContent(choice.Delta.RawJSON()); content != "" {
-						state.EmitThinking(ch, content)
+						state.EmitThinking(ctx, ch, content)
 					}
 				}
 				if choice.Delta.Content != "" {
-					state.EmitText(ch, choice.Delta.Content)
+					state.EmitText(ctx, ch, choice.Delta.Content)
 				}
 
 				for _, tc := range choice.Delta.ToolCalls {
 					idx := int(tc.Index)
 					if _, exists := toolCalls[idx]; !exists {
 						toolCalls[idx] = &core.ToolCall{ID: tc.ID, Name: tc.Function.Name}
-						state.EmitToolStart(ch, tc.ID, tc.Function.Name)
+						state.EmitToolStart(ctx, ch, tc.ID, tc.Function.Name)
 					}
 					if tc.Function.Arguments != "" {
 						toolCalls[idx].Input += tc.Function.Arguments
-						state.EmitToolInput(ch, toolCalls[idx].ID, tc.Function.Arguments)
+						state.EmitToolInput(ctx, ch, toolCalls[idx].ID, tc.Function.Arguments)
 					}
 				}
 
@@ -93,7 +93,7 @@ func StreamChatCompletions(ctx context.Context, cfg ChatStreamConfig) <-chan llm
 		}
 
 		if err := stream.Err(); err != nil {
-			state.Fail(ch, NormalizeAPIError(cfg.ProviderName, err))
+			state.Fail(ctx, ch, NormalizeAPIError(cfg.ProviderName, err))
 			return
 		}
 
