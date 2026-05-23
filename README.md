@@ -7,6 +7,9 @@
     <a href="https://pkg.go.dev/github.com/genai-io/gen-code"><img src="https://pkg.go.dev/badge/github.com/genai-io/gen-code.svg" alt="Go Reference"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
   </p>
+  <p>
+    <strong>English</strong> · <a href="README.zh.md">简体中文</a>
+  </p>
 </div>
 
 Gen Code is a terminal coding assistant with pluggable LLM providers, search engines, personas, and skill/extension surfaces — fully compatible with [Claude Code](https://claude.ai/code) skills, plugins, and MCP servers. Implemented in Go as a single binary with concurrent multi-agent orchestration.
@@ -74,9 +77,15 @@ gen --continue                 # resume latest session
 gen --resume                   # pick a past session
 ```
 
-Run `/model` on first launch to connect a provider; `/help` lists all slash commands (`/identity`, `/search`, `/skills`, `/agents`, `/mcp`, `/compact`, `/resume`, …).
+| What | How |
+|---|---|
+| Pick / switch model | `/model` — saved to `~/.gen/providers.json` |
+| Cycle thinking budget | `Ctrl+T` or `/think` (levels vary by provider) |
+| All slash commands | `/help` (`/identity`, `/search`, `/skills`, `/agents`, `/mcp`, `/compact`, …) |
+| Toggle permission mode | `Shift+Tab` (ask · auto-accept · plan) |
+| Expand tool · cancel · exit | `Ctrl+O` · `Ctrl+C` · `Ctrl+D` |
 
-Keyboard: `Shift+Tab` permission mode · `Ctrl+O` expand tool details · `Ctrl+C` cancel · `Ctrl+D` exit.
+For API keys, set the matching env var (see Credentials below) or paste when prompted on first launch. Full walkthrough: [`docs/guides/getting-started.md`](docs/guides/getting-started.md).
 
 ### Configuration
 
