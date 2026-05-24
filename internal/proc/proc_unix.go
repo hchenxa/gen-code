@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build unix
 
 package proc
 
@@ -21,23 +21,16 @@ func SetProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Setpgid = true
 }
 
-// TerminateGroup sends sig to the process group led by cmd. A missing process
-// (ESRCH) is treated as success because the caller's intent — "stop this
-// process" — is already satisfied.
+// TerminateGroup sends sig to the process group led by cmd. The cmd's
+// in-memory Process handle is used to derive the PGID rather than a raw PID,
+// so this is safe against PID reuse. A missing process (ESRCH) is treated as
+// success because the caller's intent — "stop this process" — is already
+// satisfied.
 func TerminateGroup(cmd *exec.Cmd, sig syscall.Signal) error {
 	if cmd == nil || cmd.Process == nil {
 		return nil
 	}
-	return killGroup(cmd.Process.Pid, sig)
-}
-
-// TerminateGroupByPID is like TerminateGroup but takes a raw PID, for callers
-// that hold only the PID (e.g. background task records).
-func TerminateGroupByPID(pid int, sig syscall.Signal) error {
-	return killGroup(pid, sig)
-}
-
-func killGroup(pid int, sig syscall.Signal) error {
+	pid := cmd.Process.Pid
 	if pid <= 0 {
 		return nil
 	}

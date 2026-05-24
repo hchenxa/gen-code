@@ -171,35 +171,26 @@ func (t *BashTask) WaitForCompletion(timeout time.Duration) bool {
 	}
 }
 
-// Stop gracefully stops the task (SIGTERM)
+// Stop gracefully stops the task (SIGTERM on Unix; on Windows there is no
+// signal-based graceful stop, so the underlying helper hard-kills the child).
 func (t *BashTask) Stop() error {
-	// Cancel the context first
 	if t.cancel != nil {
 		t.cancel()
 	}
-
-	// Send SIGTERM to the process group (Unix) or fall back to Process.Kill
-	// on Windows, where signal-based group termination is unavailable.
-	if err := proc.TerminateGroupByPID(t.PID, syscall.SIGTERM); err != nil {
-		return err
-	}
-
-	return nil
+	return proc.TerminateGroup(t.cmd, syscall.SIGTERM)
 }
 
-// Kill forcefully terminates the task (SIGKILL)
+// Kill forcefully terminates the task (SIGKILL). markKilled runs even if the
+// kill returned an error, so a child that races us to exit (or a Windows
+// TerminateProcess that surfaces a benign error) still leaves the task in
+// StatusKilled with `done` closed, instead of stuck in StatusRunning.
 func (t *BashTask) Kill() error {
-	// Cancel the context
 	if t.cancel != nil {
 		t.cancel()
 	}
-
-	if err := proc.TerminateGroupByPID(t.PID, syscall.SIGKILL); err != nil {
-		return err
-	}
-
+	err := proc.TerminateGroup(t.cmd, syscall.SIGKILL)
 	t.markKilled()
-	return nil
+	return err
 }
 
 // GetStatus returns the current task status info

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/genai-io/gen-code/internal/proc"
@@ -230,6 +231,16 @@ func (t *BashTool) executeBackground(ctx context.Context, command, description, 
 	// Place the child in its own process group so cancellation can take down
 	// any descendants it spawns (Unix). No-op on Windows.
 	proc.SetProcessGroup(cmd)
+	// Override the default exec.CommandContext cancel, which only kills the
+	// direct child via Process.Kill — without this, context-cancel of the
+	// background task leaves any grandchildren the bash shell spawned alive.
+	cmd.Cancel = func() error {
+		_ = proc.TerminateGroup(cmd, syscall.SIGKILL)
+		return nil
+	}
+	// Give exec a backstop so cmd.Wait can't hang on a grandchild that has
+	// inherited the stdout/stderr pipe and refuses to close it.
+	cmd.WaitDelay = 5 * time.Second
 
 	// Set up pipes for stdout and stderr
 	stdout, err := cmd.StdoutPipe()

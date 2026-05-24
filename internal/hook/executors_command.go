@@ -44,6 +44,10 @@ func (e *Engine) executeCommand(ctx context.Context, hookCmd setting.HookCmd, in
 		_ = proc.TerminateGroup(cmd, syscall.SIGKILL)
 		return nil
 	}
+	// Backstop: if a grandchild keeps the stdout/stderr pipe open after the
+	// shell is killed (common on Windows where we can't group-kill), give Wait
+	// a bounded time to drain before exec force-closes the pipes.
+	cmd.WaitDelay = 5 * time.Second
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -96,6 +100,7 @@ func (e *Engine) executeCommandBidirectional(ctx context.Context, hookCmd settin
 		_ = proc.TerminateGroup(cmd, syscall.SIGKILL)
 		return nil
 	}
+	cmd.WaitDelay = 5 * time.Second
 
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
