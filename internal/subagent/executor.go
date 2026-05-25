@@ -30,8 +30,6 @@ type Executor struct {
 	hooks               hook.Handler
 	sessionStore        SubagentSessionStore // Optional: when set, subagent sessions are persisted
 	parentSessionID     string               // Parent session ID for linking subagent sessions
-	userInstructions    string               // ~/.gen/GEN.md + rules
-	projectInstructions string               // .gen/GEN.md + rules + local
 	isGit               bool                 // whether cwd is a git repository
 	skillsPrompt        string               // available skills section for capable subagents
 	agentsPrompt        string               // available agents section for capable subagents
@@ -64,11 +62,10 @@ func NewExecutor(llmProvider llm.Provider, cwd string, parentModelID string, hoo
 	}
 }
 
-// SetContext provides project context (instructions, git status) so subagents
-// get the same system prompt foundation as the parent conversation.
-func (e *Executor) SetContext(userInstructions, projectInstructions string, isGit bool) {
-	e.userInstructions = userInstructions
-	e.projectInstructions = projectInstructions
+// SetContext provides project context (git status) so subagents get the same
+// system prompt foundation as the parent conversation. Memory (user/project
+// instructions) is intentionally not propagated — see collectSubagentReminders.
+func (e *Executor) SetContext(isGit bool) {
 	e.isGit = isGit
 }
 
@@ -329,31 +326,24 @@ func (e *Executor) loadConversation(ag core.Agent, ctx context.Context, rc *runC
 	// Fresh start: harness-managed reminders ride on the first user message
 	// as <system-reminder> blocks, matching the main agent's pattern.
 	skillsPrompt, _ := e.capabilityPrompts(rc.config)
-	reminders := collectSubagentReminders(skillsPrompt, e.userInstructions, e.projectInstructions)
+	reminders := collectSubagentReminders(skillsPrompt)
 	prompt := reminder.AttachToContent(req.Prompt, reminders)
 	ag.Append(ctx, core.UserMessage(prompt, nil))
 	return nil
 }
 
-// collectSubagentReminders returns fully-wrapped <system-reminder> blocks
+// collectSubagentReminders returns the fully-wrapped <system-reminder> blocks
 // for the subagent's first user message. Empty inputs produce no entries.
 //
-// Mirrors the main agent's reminder.Service providers (skills directory,
-// memory-user, memory-project) but emits inline because subagents are
-// one-shot — there is no long-lived service to register against.
-func collectSubagentReminders(skills, userMemory, projectMemory string) []string {
-	bodies := []string{
-		skills,
-		reminder.WrapMemory("user", userMemory),
-		reminder.WrapMemory("project", projectMemory),
+// Subagents get the skills directory (so they can invoke capabilities) but
+// NOT user/project memory: memory is scoped to the long-lived main loop
+// agent, whereas a subagent is a one-shot worker bounded by its own charter
+// and should not carry the human's project/user instructions.
+func collectSubagentReminders(skills string) []string {
+	if w := reminder.Wrap(skills); w != "" {
+		return []string{w}
 	}
-	out := make([]string, 0, len(bodies))
-	for _, b := range bodies {
-		if w := reminder.Wrap(b); w != "" {
-			out = append(out, w)
-		}
-	}
-	return out
+	return nil
 }
 
 func interpretStopReason(result *core.Result, maxTurns int) (success bool, errMsg string) {

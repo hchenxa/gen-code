@@ -6,7 +6,7 @@ each with different cache, lifecycle, and stability properties:
 | Channel | What lives there | Cache-friendly? | Mutable mid-session? |
 |---|---|---|---|
 | **System prompt** | Identity, output style, engineering defaults, provider quirks, policy, guidelines, environment footer. Slot-sectioned. | Yes — invariant per session unless a section mutates. | Yes (Use/Drop), but expensive (cache miss). |
-| **`<system-reminder>` blocks** | Session-level / project-level dynamic content: **active-skills directory**, GEN.md/CLAUDE.md memory, ad-hoc notices. Attached below the next user message. | Yes — once attached, the user message is immutable. | No (re-emitted as new attachments, never mutated). |
+| **`<system-reminder>` blocks** | Session-level / project-level dynamic content: **active-skills directory**, GEN.md/CLAUDE.md memory, one-time notices. Attached below the next user message. | Yes — once attached, the user message is immutable. | No (re-emitted as new attachments, never mutated). |
 | **User messages** | The actual prompt the user typed. | Yes — already cached. | No. |
 
 > The active-skills list (what skills the model is currently aware of) used
@@ -92,9 +92,15 @@ Reminders wrap their body in:
 </system-reminder>
 ```
 
-The LLM is instructed (in the system prompt) to treat the
-`<system-reminder>` tag as a system instruction even though it appears
-inside a user message.
+The LLM is instructed to treat the `<system-reminder>` tag as a system
+instruction even though it appears inside a user message. That directive
+lives in the system prompt as `<guidelines name="system-reminders">`
+(source: `internal/core/system/prompts/guidelines/system-reminders.txt`),
+applied to both
+main and subagent scopes — subagents receive reminders too (the skills
+directory). It also tells the model to act on the most recent reminder
+values (they refresh and re-inject after compaction) and not to echo the
+tags back to the user.
 
 Implementation: [`packages/reminder.md`](../packages/reminder.md).
 
@@ -112,24 +118,59 @@ Two memory tiers:
 Memory is **never** in the system prompt — that would invalidate the
 prompt cache every time the user edited their memory file.
 
+Each memory reminder leads with a one-line **preamble** framing the
+content for the model (e.g. *"The following is the user's saved memory
+(preferences and standing instructions). Apply it throughout this
+session."*) before the `<memory scope="…">` envelope. The raw memory text
+alone carries no instruction to follow it; the preamble supplies that
+framing, mirroring how the skills directory self-introduces.
+`reminder.WrapMemory` owns this shape.
+
+**Subagents do not receive memory.** Only the long-lived main loop agent
+gets `memory-user` / `memory-project`. A subagent is a one-shot worker
+bounded by its own charter, so it carries the skills directory (to invoke
+capabilities) but not the human's project/user instructions. See
+`internal/subagent/executor.go` (`collectSubagentReminders`).
+
 ## Compaction
 
 When the context window approaches its limit, the harness compacts:
 
-1. Pick the prefix of messages to summarize (everything except the most
-   recent N turns).
+1. Build the summarization input from the conversation, **stripping every
+   `<system-reminder>` block** out of the user messages first (see below).
 2. Call the LLM with a "summarize the following conversation" prompt to
    produce a `CompactInfo` summary.
-3. Replace the prefix with a single synthetic message containing the
+3. Replace the conversation with a single synthetic message containing the
    summary.
-4. Re-emit all reminders (`EnqueueAllProviders`) so the post-compact
-   conversation has fresh skill/memory context.
+4. Drop one-time notices (`DiscardPendingNotices`) and re-emit all providers
+   (`EnqueueAllProviders`) so the post-compact conversation has fresh
+   skill/memory context on the next user turn.
+
+### Reminders are skipped during compaction, not summarized
+
+Reminders ride *inside* user-message content (attached below the prompt),
+so a naive summarizer would fold stale skill/memory/notice text into the
+summary. That is wasteful and risks pinning outdated context into the
+permanent summary. Instead, `core.BuildConversationText` strips
+`<system-reminder>…</system-reminder>` blocks before summarizing; a message
+that was *only* reminders contributes nothing. The fresh state comes back
+through the re-emission step (4), giving every reminder provider — skills,
+memory-user, memory-project, and notices — the same lifecycle:
+
+- **injected** on the first user message (`SessionStart`),
+- **skipped** from the summarization input during compaction,
+- **re-injected** on the next user message after `PostCompact`.
+
+This is the single behavior `core.BuildConversationText` enforces for both
+the auto-compaction path (`internal/agent/build.go`) and the manual
+`/compact` path (`internal/app/conv/compact.go`).
 
 Compaction is **not** a channel by itself — it's a mutation of the
-user-message channel. The reminder re-emission step is what makes
-compaction safe across the reminder channel.
+user-message channel. The strip-then-re-emit pair is what keeps the
+reminder channel coherent across a compaction.
 
-Implementation: `internal/app/conv/compact.go`. The agent emits
+Implementation: `internal/app/conv/compact.go` and
+`internal/core/message.go` (`BuildConversationText`). The agent emits
 `OnCompact` events for observers.
 
 ## See Also

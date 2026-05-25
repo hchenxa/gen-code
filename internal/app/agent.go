@@ -221,7 +221,7 @@ func (m *model) sendToAgent(content string, images []core.Image) tea.Cmd {
 
 // attachPendingReminders drains the reminder queue and appends any pending
 // <system-reminder> blocks to the user message content. The harness uses this
-// channel to deliver session/project context (skills, memory, ad-hoc notices)
+// channel to deliver session/project context (skills, memory, one-time notices)
 // without invalidating the system-prompt cache prefix.
 func (m *model) attachPendingReminders(content string) string {
 	if m.services.Reminder == nil {
@@ -371,7 +371,7 @@ func (m *model) ReconfigureAgentTool() {
 	if m.services.Session.GetStore() != nil && m.services.Session.ID() != "" {
 		executor.SetSessionStore(m.services.Session.GetStore(), m.services.Session.ID())
 	}
-	executor.SetContext(m.env.CachedUserInstructions, m.env.CachedProjectInstructions, m.env.IsGit)
+	executor.SetContext(m.env.IsGit)
 	executor.SetCapabilities(m.services.Skill.PromptSection(), m.services.Subagent.PromptSection())
 	if m.services.MCP != nil {
 		executor.SetMCP(m.services.MCP, m.services.MCP)

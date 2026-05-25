@@ -157,6 +157,22 @@ func ParseToolInput(input string) (map[string]any, error) {
 	return params, nil
 }
 
+// systemReminderBlock matches a whole <system-reminder>…</system-reminder>
+// block (with optional source attribute), including the leading blank line
+// AttachToContent inserts before it. Used to drop reminder content from the
+// summarization input.
+var systemReminderBlock = regexp.MustCompile(`(?s)\n*<system-reminder(?:\s[^>]*)?>.*?</system-reminder>`)
+
+// stripSystemReminders removes harness-attached <system-reminder> blocks from
+// user message content. Reminders (skills, memory, one-time notices) are ephemeral
+// harness context that is re-injected fresh after compaction, so feeding the
+// stale copies into the summarizer wastes tokens and risks them being baked
+// into the summary. Stripping keeps compaction operating on real conversation
+// turns only.
+func stripSystemReminders(content string) string {
+	return strings.TrimSpace(systemReminderBlock.ReplaceAllString(content, ""))
+}
+
 // BuildConversationText converts messages to text for summarization.
 func BuildConversationText(msgs []Message) string {
 	var sb strings.Builder
@@ -172,7 +188,11 @@ func BuildConversationText(msgs []Message) string {
 				}
 				fmt.Fprintf(&sb, "[Tool Result: %s]\n%s\n\n", msg.ToolResult.ToolName, content)
 			} else {
-				fmt.Fprintf(&sb, "User: %s\n\n", msg.Content)
+				content := stripSystemReminders(msg.Content)
+				if content == "" {
+					continue
+				}
+				fmt.Fprintf(&sb, "User: %s\n\n", content)
 			}
 
 		case RoleAssistant:

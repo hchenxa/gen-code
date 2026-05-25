@@ -12,7 +12,7 @@
 //
 // Use the reminder package for content that is "session-level" or
 // "project-level" and may change during a session — skills directory, memory
-// files, ad-hoc notices. Behavior that is true for every Gen Code session
+// files, one-time notices. Behavior that is true for every Gen Code session
 // (identity, policy, guidelines) belongs in the system prompt instead.
 package reminder
 
@@ -62,7 +62,8 @@ func (p providerFunc) Render() string { return p.render() }
 //     PostCompact (e.g. skills, memory).
 //   - pending: reminders queued for the next user message; each entry tracks
 //     which provider (if any) emitted it so EnqueueAllProviders can replace
-//     stale provider entries instead of duplicating them.
+//     stale provider entries instead of duplicating them. Entries with no
+//     provider are one-time notices (see Enqueue).
 //
 // All operations are safe for concurrent use.
 type Service struct {
@@ -72,11 +73,11 @@ type Service struct {
 }
 
 // pendingEntry pairs a wrapped <system-reminder> body with the ID of the
-// provider that produced it. providerID is empty for ad-hoc bodies queued
+// provider that produced it. providerID is empty for one-time notices queued
 // via Enqueue (e.g. hook context), so they always coexist with — and never
 // shadow — provider emissions.
 type pendingEntry struct {
-	providerID string // "" for ad-hoc Enqueue
+	providerID string // "" for a one-time notice (Enqueue)
 	wrapped    string // already wrapped in <system-reminder>
 }
 
@@ -115,10 +116,12 @@ func (s *Service) Unregister(id string) {
 	}
 }
 
-// Enqueue adds an ad-hoc reminder body to the pending queue. The body should
-// not include the <system-reminder> wrapper — this method adds it.
+// Enqueue adds a one-time notice to the pending queue. A notice is a reminder
+// not backed by a provider — e.g. hook context or a cancel notice — emitted
+// once and never auto-regenerated. The body should not include the
+// <system-reminder> wrapper; this method adds it.
 //
-// Empty bodies are dropped silently. Ad-hoc entries persist independently of
+// Empty bodies are dropped silently. Notices persist independently of
 // EnqueueAllProviders — the latter only touches provider-emitted entries.
 func (s *Service) Enqueue(body string) {
 	body = strings.TrimSpace(body)
@@ -131,12 +134,12 @@ func (s *Service) Enqueue(body string) {
 	s.pending = append(s.pending, pendingEntry{wrapped: wrapped})
 }
 
-// DiscardPendingAdHoc drops every pending entry that was queued via Enqueue /
-// EnqueueOnce (providerID==""). Used by /compact: the cancelled assistant or
-// hook output that originally produced these reminders has been summarized
-// out of the conversation, so the reminder no longer matches what the model
-// sees. Provider entries are preserved.
-func (s *Service) DiscardPendingAdHoc() {
+// DiscardPendingNotices drops every pending notice — entries queued via
+// Enqueue / EnqueueOnce (providerID==""). Used by /compact: the cancelled
+// assistant or hook output that originally produced these notices has been
+// summarized out of the conversation, so the notice no longer matches what
+// the model sees. Provider entries are preserved.
+func (s *Service) DiscardPendingNotices() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.pending) == 0 {
@@ -175,7 +178,7 @@ func (s *Service) EnqueueOnce(body string) {
 // non-empty bodies. Idempotent across repeated calls: any prior pending
 // entry from the same provider is dropped before re-emitting, so SessionStart
 // → PostCompact → /skills toggle in close succession produces a single
-// emission per provider rather than accumulating duplicates. Ad-hoc entries
+// emission per provider rather than accumulating duplicates. One-time notices
 // queued via Enqueue are preserved.
 //
 // Each provider's body is wrapped with the provider ID as the `source`
@@ -243,7 +246,7 @@ func Wrap(body string) string {
 // WrapWithSource is like Wrap but stamps a source attribute on the opening
 // tag so downstream consumers (transcript parser, viewer) know which
 // provider produced the reminder. source="" matches Wrap output exactly to
-// keep ad-hoc Enqueue traffic and tests stable.
+// keep one-time notice (Enqueue) traffic and tests stable.
 func WrapWithSource(body, source string) string {
 	body = strings.TrimSpace(body)
 	if body == "" {
@@ -258,15 +261,30 @@ func WrapWithSource(body, source string) string {
 	return "<system-reminder source=\"" + src + "\">\n" + body + "\n</system-reminder>"
 }
 
-// WrapMemory returns the canonical <memory scope="..."> envelope used by
-// both the main agent's reminder providers and the subagent's first-message
-// reminders. Empty body returns "".
+// WrapMemory returns the main agent's memory reminder body: a short
+// instructive preamble that tells the model what the content is and how to
+// treat it, followed by the canonical <memory scope="..."> envelope. The
+// preamble matters because the raw memory text alone gives the model no
+// framing — unlike the skills directory, which self-introduces. Empty body
+// returns "".
 func WrapMemory(scope, body string) string {
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return ""
 	}
-	return "<memory scope=\"" + scope + "\">\n" + body + "\n</memory>"
+	return memoryPreamble(scope) + "\n<memory scope=\"" + scope + "\">\n" + body + "\n</memory>"
+}
+
+// memoryPreamble returns the one-line framing sentence prepended to a memory
+// reminder, tailored to the scope. Unknown scopes fall back to the user
+// phrasing.
+func memoryPreamble(scope string) string {
+	switch scope {
+	case "project":
+		return "The following is saved project memory (conventions and standing instructions for this codebase). Apply it throughout this session."
+	default:
+		return "The following is the user's saved memory (preferences and standing instructions). Apply it throughout this session."
+	}
 }
 
 // AttachToContent appends pending reminders to user message content. A blank

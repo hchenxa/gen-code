@@ -19,7 +19,7 @@ cache — currently:
 
 - skills directory (re-emit when a skill is enabled / disabled / activated)
 - memory user / memory project (re-emit on memory file change)
-- ad-hoc notices (queued from hooks or commands)
+- one-time notices (queued from hooks or commands)
 
 See [`concepts/harness-channels.md`](../concepts/harness-channels.md) for
 why reminders are a separate channel from the system prompt.
@@ -90,7 +90,7 @@ A handful of nits:
   prior pending entries from the same provider before re-emitting, so
   `SessionStart` → `PostCompact` → `/skills` toggle in close succession
   produces one emission per provider rather than three.
-- Ad-hoc `Enqueue` entries persist independently of provider re-emits.
+- One-time notices (`Enqueue`) persist independently of provider re-emits.
 - `Wrap` adds the `<system-reminder source="...">…</system-reminder>`
   XML-style tag with optional source attribution.
 
@@ -102,11 +102,18 @@ A handful of nits:
   `DrainPending()` and wraps the bodies into the outgoing user message.
 - Per-event: skill toggles / memory updates call `EnqueueAllProviders`
   to refresh provider-emitted reminders.
+- On compaction: reminder blocks are **skipped, not summarized**.
+  `core.BuildConversationText` strips `<system-reminder>…</system-reminder>`
+  from user content before the summarizer runs, then the harness calls
+  `DiscardPendingNotices` + `EnqueueAllProviders` so fresh provider state
+  reattaches to the next user turn. All providers (skills, memory-user,
+  memory-project) and one-time notices share this lifecycle. See
+  [`concepts/harness-channels.md`](../concepts/harness-channels.md#compaction).
 
 ## Tests
 
 ```
-internal/reminder/reminder_test.go    — provider re-emission, ad-hoc
+internal/reminder/reminder_test.go    — provider re-emission, notice
                                          queue, idempotence, wrap format.
 ```
 

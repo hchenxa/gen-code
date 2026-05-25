@@ -109,7 +109,7 @@ func runHeadlessAgent() error {
 	// same permission gate (deny_tools / bypass-immune / allow_tools / mode)
 	// as TUI-spawned subagents.
 	executor := subagent.NewExecutor(llmProvider, cwd, modelID, nil)
-	executor.SetContext("", "", setting.IsGitRepo(cwd))
+	executor.SetContext(setting.IsGitRepo(cwd))
 
 	fmt.Printf("Agent: %s\n", agentRunOpts.agentType)
 	fmt.Printf("Prompt: %s\n", agentRunOpts.prompt)

@@ -6,6 +6,25 @@ import (
 	"testing"
 )
 
+func TestWrapMemoryPreamble(t *testing.T) {
+	user := WrapMemory("user", "Always use tabs.")
+	if !strings.Contains(user, "user's saved memory") {
+		t.Errorf("WrapMemory(user) missing user preamble: %q", user)
+	}
+	if !strings.HasSuffix(user, "<memory scope=\"user\">\nAlways use tabs.\n</memory>") {
+		t.Errorf("WrapMemory(user) should end with the <memory> envelope: %q", user)
+	}
+
+	project := WrapMemory("project", "Run make lint.")
+	if !strings.Contains(project, "saved project memory") {
+		t.Errorf("WrapMemory(project) missing project preamble: %q", project)
+	}
+
+	if got := WrapMemory("user", "   "); got != "" {
+		t.Errorf("WrapMemory with blank body = %q, want \"\"", got)
+	}
+}
+
 func TestWrapEmpty(t *testing.T) {
 	if got := Wrap(""); got != "" {
 		t.Errorf("Wrap(\"\") = %q, want \"\"", got)
@@ -211,13 +230,13 @@ func TestServiceProviderReflectsLatestState(t *testing.T) {
 // TestServiceEnqueueAllProvidersIsIdempotent guards against the slow-growing
 // duplicate-emission leak: SessionStart → PostCompact → /skills toggle in
 // close succession should produce one emission per provider, not three.
-// Ad-hoc Enqueue entries must survive a re-emission unmolested.
+// One-time notices (Enqueue) must survive a re-emission unmolested.
 func TestServiceEnqueueAllProvidersIsIdempotent(t *testing.T) {
 	s := NewService()
 	s.Register(NewProvider("skills-directory", func() string { return "skills body" }))
 	s.Register(NewProvider("memory-user", func() string { return "user mem" }))
 
-	// Ad-hoc hook context queued before the first emission.
+	// Hook-context notice queued before the first emission.
 	s.Enqueue("hook context A")
 
 	s.EnqueueAllProviders() // first SessionStart
@@ -225,9 +244,9 @@ func TestServiceEnqueueAllProvidersIsIdempotent(t *testing.T) {
 	s.EnqueueAllProviders() // PostCompact
 
 	out := s.Drain()
-	// 1 ad-hoc entry + 2 provider entries (one per provider) = 3 total.
+	// 1 notice + 2 provider entries (one per provider) = 3 total.
 	if len(out) != 3 {
-		t.Fatalf("expected 3 reminders (1 ad-hoc + 2 providers), got %d: %v", len(out), out)
+		t.Fatalf("expected 3 reminders (1 notice + 2 providers), got %d: %v", len(out), out)
 	}
 
 	var skillsCount, memoryCount, hookCount int

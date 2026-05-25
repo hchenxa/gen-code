@@ -18,7 +18,7 @@ import (
 //	prompts/engineering.txt           — engineering defaults (Restraint, Code conventions, Error handling)
 //	prompts/policy.txt                — safety contract (never overridden)
 //	prompts/compact.txt               — conversation compactor prompt
-//	prompts/guidelines/{tools,git,questions,tasks}.txt
+//	prompts/guidelines/{tools,system-reminders,git,questions,tasks}.txt
 //	prompts/providers/<name>.txt      — provider-specific quirks (optional)
 //
 // Format the LLM sees, top to bottom:
@@ -28,6 +28,7 @@ import (
 //	<engineering> … </engineering>                   (how you work on code)
 //	<policy> … </policy>                             (safety, never overridden)
 //	<guidelines name="tool-usage"> … </guidelines>
+//	<guidelines name="system-reminders"> … </guidelines> (how to treat <system-reminder>)
 //	<guidelines name="task-workflow"> … </guidelines>
 //	<guidelines name="when-to-ask"> … </guidelines>
 //	<guidelines name="git-safety"> … </guidelines>   (only when isGit)
@@ -51,6 +52,7 @@ var (
 	cachedGit         = loadEmbed("prompts/guidelines/git.txt")
 	cachedQuestions   = loadEmbed("prompts/guidelines/questions.txt")
 	cachedTasks       = loadEmbed("prompts/guidelines/tasks.txt")
+	cachedReminders   = loadEmbed("prompts/guidelines/system-reminders.txt")
 )
 
 // loadEmbed reads a required embedded prompt and trims surrounding whitespace.
@@ -90,6 +92,9 @@ func applyDefaults(sys core.System, scope core.Scope) {
 	}
 	sys.Use(policy(), caller)
 	sys.Use(guidelines("tool-usage", cachedTools), caller)
+	// How to treat harness-injected <system-reminder> content. Applies to
+	// both scopes — subagents also receive reminders (the skills directory).
+	sys.Use(guidelines("system-reminders", cachedReminders), caller)
 	if scope == core.ScopeMain {
 		// Task tracking + interactive questions are main-agent behaviors.
 		sys.Use(guidelines("task-workflow", cachedTasks), caller)
