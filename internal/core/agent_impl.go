@@ -231,39 +231,61 @@ var errStopped = errors.New("stopped")
 // and the caller wants the model to continue in the next turn.
 const TruncatedResumePrompt = "Your response was truncated due to output token limits. Resume directly from where you left off. Do not repeat any content."
 
-// waitForInput blocks until at least one message arrives, then drains remaining.
+// waitForInput blocks until a real (turn-starting) message arrives, then drains
+// remaining. Control-only signals such as SigCompact are processed but do not
+// start a turn: if a wake-up delivered nothing but signals, we loop back to
+// blocking rather than returning, so e.g. a manual /compact while idle compacts
+// the chain without triggering a spurious inference on the lone summary.
 func (a *agent) waitForInput(ctx context.Context) error {
-	// Block until first message
-	select {
-	case msg, ok := <-a.inbox:
-		if !ok || msg.Signal == SigStop {
-			return errStopped
-		}
-		a.ingest(ctx, msg)
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	// Drain remaining (non-blocking)
 	for {
 		select {
 		case msg, ok := <-a.inbox:
 			if !ok || msg.Signal == SigStop {
 				return errStopped
 			}
-			a.ingest(ctx, msg)
-		default:
-			return nil
+			startsTurn := a.ingest(ctx, msg)
+
+			// Drain remaining (non-blocking).
+		drain:
+			for {
+				select {
+				case msg, ok := <-a.inbox:
+					if !ok || msg.Signal == SigStop {
+						return errStopped
+					}
+					if a.ingest(ctx, msg) {
+						startsTurn = true
+					}
+				default:
+					break drain
+				}
+			}
+
+			if startsTurn {
+				return nil
+			}
+			// Only control signals arrived — stay idle.
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
 }
 
-// ingest notifies hooks and appends a message (with text + images) to conversation.
-func (a *agent) ingest(ctx context.Context, msg Message) {
+// ingest processes one inbox message and reports whether it starts a turn
+// (i.e. a real message was appended to the conversation). SigCompact applies
+// an in-place compaction with the precomputed summary it carries; signals
+// never start a turn.
+func (a *agent) ingest(ctx context.Context, msg Message) bool {
+	if msg.Signal == SigCompact {
+		a.applyCompaction(ctx, msg.Content, len(a.snapshot()), "manual")
+		return false
+	}
 	a.emit(ctx, MessageEvent(msg))
 	if msg.Signal == "" {
 		a.append(msg)
+		return true
 	}
+	return false
 }
 
 // ThinkAct runs one full inference-action cycle until end_turn.
@@ -496,18 +518,29 @@ func (a *agent) compact(ctx context.Context) bool {
 	if err != nil || summary == "" {
 		return false
 	}
-	originalCount := len(msgs)
+	a.applyCompaction(ctx, summary, len(msgs), "auto")
+	return true
+}
 
-	// The summary becomes the sole message of the new chain. Give it a stable
-	// ID and record it as a normal message.appended so transcript replay can
-	// resolve the ID the next inference will reference; then emit the compaction
-	// boundary at that ID so replay truncates the summarized-away history.
+// applyCompaction replaces the conversation chain with a single summary
+// message in place. The summary becomes the sole message of the new chain;
+// it gets a stable ID and is recorded as a normal message.appended so
+// transcript replay can resolve the ID the next inference references, then a
+// CompactEvent is emitted carrying that ID as the boundary so replay truncates
+// the summarized-away history. Both auto-compaction (compact) and manual
+// /compact (SigCompact) funnel through here so they record identically and
+// neither rebuilds the agent.
+func (a *agent) applyCompaction(ctx context.Context, summary string, originalCount int, trigger string) {
 	summaryMsg := UserMessage(FormatCompactSummary(summary), nil)
 	summaryMsg.ID = NewMessageID()
 	a.SetMessages([]Message{summaryMsg})
 	a.emitAppend(summaryMsg)
-	a.emit(ctx, CompactEvent(a.id, CompactInfo{Summary: summary, OriginalCount: originalCount, SummaryMessageID: summaryMsg.ID}))
-	return true
+	a.emit(ctx, CompactEvent(a.id, CompactInfo{
+		Summary:          summary,
+		OriginalCount:    originalCount,
+		SummaryMessageID: summaryMsg.ID,
+		Trigger:          trigger,
+	}))
 }
 
 // isPromptTooLong checks if an error indicates the prompt exceeds the model's limit.
@@ -652,17 +685,20 @@ func (a *agent) emitFinal(event Event) {
 }
 
 // drainInbox non-blocking reads ONE pending inbox message.
-// Returns 1 if a message was consumed, 0 if none available.
-// Each message gets its own ThinkAct cycle so the TUI can pair
-// each user message with its response.
+// Returns 1 if a turn-starting message was consumed, 0 otherwise (nothing
+// pending, or a control-only signal such as SigCompact that was applied but
+// does not warrant a new ThinkAct). Each turn-starting message gets its own
+// ThinkAct cycle so the TUI can pair each user message with its response.
 func (a *agent) drainInbox(ctx context.Context) (int, error) {
 	select {
 	case msg, ok := <-a.inbox:
 		if !ok || msg.Signal == SigStop {
 			return 0, errStopped
 		}
-		a.ingest(ctx, msg)
-		return 1, nil
+		if a.ingest(ctx, msg) {
+			return 1, nil
+		}
+		return 0, nil
 	default:
 		return 0, nil
 	}

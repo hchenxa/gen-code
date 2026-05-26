@@ -242,6 +242,9 @@ type CompactInfo struct {
 	// compaction boundary so replay truncates history at the summary instead of
 	// resurrecting the summarized-away messages.
 	SummaryMessageID string
+	// Trigger is "auto" (proactive/reactive in-loop compaction) or "manual"
+	// (user /compact). Observers use it to vary post-compaction behavior.
+	Trigger string
 }
 
 // InferenceContext is the PreInfer payload — what was about to be sent to the

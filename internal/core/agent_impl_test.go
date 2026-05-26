@@ -94,6 +94,63 @@ func TestEstimatePromptTokensNeverDropsBelowLastKnownPromptSize(t *testing.T) {
 	}
 }
 
+// A SigCompact applies an in-place compaction (replacing the chain with the
+// precomputed summary, recording the manual boundary) and must NOT start a
+// turn — otherwise the lone summary would trigger a spurious inference.
+func TestIngestSigCompactAppliesInPlaceWithoutStartingTurn(t *testing.T) {
+	var captured []Event
+	ag := NewAgent(Config{
+		ID:      "test",
+		LLM:     newBlockingLLM(1),
+		System:  NewSystem(),
+		Tools:   NewTools(),
+		OnEvent: func(e Event) { captured = append(captured, e) },
+	})
+	a := ag.(*agent)
+	go func() {
+		for range ag.Outbox() {
+		}
+	}()
+
+	a.SetMessages([]Message{
+		UserMessage("hi", nil),
+		AssistantMessage("hello", "", nil),
+		UserMessage("more", nil),
+	})
+
+	if a.ingest(context.Background(), Message{Signal: SigCompact, Content: "the summary"}) {
+		t.Fatal("SigCompact must not start a turn")
+	}
+
+	msgs := a.snapshot()
+	if len(msgs) != 1 || !strings.Contains(msgs[0].Content, "the summary") {
+		t.Fatalf("SigCompact should compact in place to the single summary, got %d messages", len(msgs))
+	}
+
+	var info *CompactInfo
+	for _, e := range captured {
+		if e.Type == OnCompact {
+			if ci, ok := e.CompactInfo(); ok {
+				c := ci
+				info = &c
+			}
+		}
+	}
+	if info == nil {
+		t.Fatal("SigCompact should emit a CompactEvent")
+	}
+	if info.Trigger != "manual" {
+		t.Fatalf("manual compaction trigger = %q, want manual", info.Trigger)
+	}
+	if info.SummaryMessageID == "" || info.SummaryMessageID != msgs[0].ID {
+		t.Fatalf("boundary %q must equal the summary message ID %q", info.SummaryMessageID, msgs[0].ID)
+	}
+
+	if !a.ingest(context.Background(), UserMessage("next", nil)) {
+		t.Fatal("a normal user message must start a turn")
+	}
+}
+
 // blockingLLM blocks Infer until the caller pushes a release signal. The
 // release channel is buffered so the test can enqueue signals without
 // racing the agent goroutine's read of the field.
