@@ -10,19 +10,16 @@
   <p>
     <strong>English</strong> · <a href="README.zh.md">简体中文</a>
   </p>
+  <p>
+    <img src="https://github.com/user-attachments/assets/84cd2770-e2c4-488f-96e0-d512fb3bfb38" alt="Gen Code" width="80%">
+  </p>
 </div>
-
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/84cd2770-e2c4-488f-96e0-d512fb3bfb38" />
 
 Gen Code is a terminal coding assistant with pluggable LLM providers, search engines, personas, and skill/extension surfaces — fully compatible with [Claude Code](https://claude.ai/code) skills, plugins, and MCP servers. Implemented in Go as a single binary with concurrent multi-agent orchestration.
 
 ## Features
 
 ### Open architecture
-
-<p align="center">
-  <img src="docs/diagrams/open-architecture.svg" alt="Gen Code open architecture — four dimensions: model providers, search engines, role switching, and skills/extensions" width="100%">
-</p>
 
 - **LLM providers** — Anthropic, OpenAI, Google, Moonshot, Alibaba, MiniMax, Z.ai (GLM); swap via `/model`.
 - **Search backends** — Exa, Tavily, Brave, Serper; swap via `/search`.
