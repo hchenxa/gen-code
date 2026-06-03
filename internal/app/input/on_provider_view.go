@@ -351,7 +351,7 @@ func (s *ProviderSelector) renderHints() string {
 	if s.activeTab == providerTabProviders {
 		parts = append(parts, "Enter connect/refresh")
 	} else {
-		parts = append(parts, "Enter select")
+		parts = append(parts, "Space mark · Enter confirm")
 	}
 	parts = append(parts, "←/→/Tab switch", "Esc cancel")
 	return kit.DimStyle().Render(strings.Join(parts, " · "))

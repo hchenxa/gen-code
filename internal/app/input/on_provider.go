@@ -206,6 +206,7 @@ type ProviderSelector struct {
 	// Model search / filter
 	searchQuery    string
 	filteredModels []providerModelItem
+	searchFocused  bool
 
 	// Provider connection result (shown inline)
 	lastConnectResult  string
@@ -325,6 +326,9 @@ func (s *ProviderSelector) MoveUp() {
 			break
 		}
 	}
+	if s.selectedIdx == 0 {
+		s.searchFocused = true
+	}
 	s.ensureVisible()
 }
 
@@ -335,6 +339,7 @@ func (s *ProviderSelector) MoveDown() {
 			break
 		}
 	}
+	s.searchFocused = false
 	s.ensureVisible()
 }
 
@@ -387,6 +392,7 @@ func (s *ProviderSelector) trimModelSearch() {
 
 func (s *ProviderSelector) appendModelSearch(text string) {
 	s.searchQuery += text
+	s.searchFocused = true
 	s.rebuildVisibleItems()
 }
 
@@ -447,6 +453,9 @@ func (s *ProviderSelector) HandleKeypress(key tea.KeyMsg) tea.Cmd {
 		return nil
 
 	case tea.KeySpace:
+		if s.activeTab == providerTabModels && !s.searchFocused {
+			return s.toggleModel()
+		}
 		s.appendModelSearch(" ")
 		return nil
 
@@ -511,6 +520,18 @@ func (s *ProviderSelector) handleAPIKeyInput(key tea.KeyMsg) tea.Cmd {
 // ── Selection ──────────────────────────────────────────────────────────────────
 
 func (s *ProviderSelector) Select() tea.Cmd {
+	// On the Models tab: if any model is checked (either from a previous
+	// session or explicitly toggled with Space), use it regardless of the
+	// cursor position. If no model is checked at all (first use), fall
+	// through to cursor-based selection.
+	if s.activeTab == providerTabModels {
+		for _, m := range s.allModels {
+			if m.IsCurrent {
+				return s.selectModelFromIDs(m.ID, m.ProviderName, m.AuthMethod)
+			}
+		}
+	}
+
 	if s.selectedIdx < 0 || s.selectedIdx >= len(s.visibleItems) {
 		return nil
 	}
@@ -540,6 +561,48 @@ func (s *ProviderSelector) selectModel(m *providerModelItem) tea.Cmd {
 			AuthMethod:   m.AuthMethod,
 		}
 	}
+}
+
+// selectModelFromIDs is like selectModel but takes the model identity as strings
+// and constructs the message directly, without requiring a model pointer.
+// Used by Select() when a pending toggle exists, to avoid depending on
+// IsCurrent flag state across rebuilds.
+func (s *ProviderSelector) selectModelFromIDs(id, provider string, auth llm.AuthMethod) tea.Cmd {
+	s.active = false
+	return func() tea.Msg {
+		return ProviderModelSelectedMsg{
+			ModelID:      id,
+			ProviderName: provider,
+			AuthMethod:   auth,
+		}
+	}
+}
+
+// toggleModel toggles the checkbox of the currently highlighted model item.
+// Unlike Select (Enter), it only updates the IsCurrent flag visually and
+// does NOT activate the model or close the overlay.
+func (s *ProviderSelector) toggleModel() tea.Cmd {
+	if s.selectedIdx < 0 || s.selectedIdx >= len(s.visibleItems) {
+		return nil
+	}
+	item := s.visibleItems[s.selectedIdx]
+	if item.Kind != providerItemModel || item.Model == nil {
+		return nil
+	}
+	m := item.Model
+	for i := range s.allModels {
+		s.allModels[i].IsCurrent = s.allModels[i].ID == m.ID && s.allModels[i].ProviderName == m.ProviderName
+	}
+	for i := range s.filteredModels {
+		s.filteredModels[i].IsCurrent = s.filteredModels[i].ID == m.ID && s.filteredModels[i].ProviderName == m.ProviderName
+	}
+	for i := range s.visibleItems {
+		if s.visibleItems[i].Kind == providerItemModel && s.visibleItems[i].Model != nil {
+			vi := s.visibleItems[i].Model
+			vi.IsCurrent = vi.ID == m.ID && vi.ProviderName == m.ProviderName
+		}
+	}
+	return nil
 }
 
 // selectProvider handles Enter on a provider row (Providers tab).
@@ -1203,6 +1266,7 @@ func (s *ProviderSelector) resetModelSearch() {
 func (s *ProviderSelector) resetNavigation() {
 	s.selectedIdx = 0
 	s.scrollOffset = 0
+	s.searchFocused = false
 }
 
 // Cancel cancels the selector and clears transient state so the next open starts cleanly.
