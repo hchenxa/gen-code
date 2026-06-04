@@ -247,6 +247,27 @@ func (s *Store) GetAllCachedModelsIncludeExpired() map[string][]ModelInfo {
 	return result
 }
 
+// CachedModelDisplayName returns the display name for a model ID found in any
+// cached provider list, ignoring TTL, falling back to the model's Name. Returns
+// "" if the ID isn't cached. Unlike GetAllCachedModels*, it scans in place
+// without allocating a snapshot map, since it runs on every status-bar render.
+func (s *Store) CachedModelDisplayName(id string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, cache := range s.data.Models {
+		for _, m := range cache.Models {
+			if m.ID == id {
+				if m.DisplayName != "" {
+					return m.DisplayName
+				}
+				return m.Name
+			}
+		}
+	}
+	return ""
+}
+
 // SetCurrentModel sets the current model with provider info
 func (s *Store) SetCurrentModel(modelID string, provider Name, authMethod AuthMethod) error {
 	s.mu.Lock()

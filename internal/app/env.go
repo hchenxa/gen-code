@@ -120,18 +120,8 @@ func (m *env) GetModelDisplayName() string {
 	if m.store == nil {
 		return id
 	}
-	for _, models := range m.store.GetAllCachedModelsIncludeExpired() {
-		for _, mdl := range models {
-			if mdl.ID == id {
-				if mdl.DisplayName != "" {
-					return mdl.DisplayName
-				}
-				if mdl.Name != "" {
-					return mdl.Name
-				}
-				return id
-			}
-		}
+	if name := m.store.CachedModelDisplayName(id); name != "" {
+		return name
 	}
 	return id
 }
