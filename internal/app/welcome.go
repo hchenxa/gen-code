@@ -46,17 +46,23 @@ func welcomeUseColor() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
+var (
+	brandWordStyle = lipgloss.NewStyle().Foreground(kit.CurrentTheme.Focus).Bold(true)
+	brandStarStyle = lipgloss.NewStyle().Foreground(welcomeStar)
+)
+
+// brandMark renders the "< SAN ✦ />" wordmark — teal brackets/word (the shared
+// Focus accent) with the star-blue ✦. Used by the startup splash, the live
+// model-change line, and the cold-start loading line so the brand reads
+// identically across all three.
+func brandMark() string {
+	return brandWordStyle.Render("< SAN") + " " + brandStarStyle.Render("✦") + " " + brandWordStyle.Render("/>")
+}
+
 func renderWelcome(info welcomeInfo) string {
-	var (
-		star    = lipgloss.NewStyle().Foreground(welcomeStar)
-		brand   = lipgloss.NewStyle().Foreground(kit.CurrentTheme.Focus).Bold(true)
-		bracket = lipgloss.NewStyle().Foreground(kit.CurrentTheme.Focus).Bold(true)
-		dim     = lipgloss.NewStyle().Foreground(welcomeDim)
-	)
+	dim := lipgloss.NewStyle().Foreground(welcomeDim)
 
-	header := bracket.Render("< ") + brand.Render("SAN") + " " + star.Render("✦") + " " + bracket.Render("/>")
-
-	parts := []string{header}
+	parts := []string{brandMark()}
 	if proj := projectName(info.CWD); proj != "" {
 		parts = append(parts, dim.Render(proj))
 	}

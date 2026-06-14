@@ -34,7 +34,7 @@ func (m *model) View() tea.View {
 // viewString renders the UI to a styled string; View wraps it in a tea.View.
 func (m *model) viewString() string {
 	if !m.env.Ready {
-		return "\n  Loading..."
+		return "\n  " + brandMark() + ghostTextStyle.Render("  ·  Loading…")
 	}
 
 	ov, hasOverlay := m.activeOverlay()
@@ -224,6 +224,7 @@ func (m model) renderTrackerList() string {
 		Width:        m.env.Width,
 		SpinnerView:  m.conv.Spinner.View(),
 		Blockers:     m.services.Tracker.OpenBlockers,
+		Blink:        m.conv.Spinner.Frame(),
 	})
 }
 
@@ -288,7 +289,7 @@ func (m model) messageRenderParams() conv.RenderContext {
 
 		// Per-tick UI state
 		SpinnerView:  m.conv.Spinner.View(),
-		Blink:        m.conv.Blink,
+		Blink:        m.conv.Spinner.Frame(),
 		ModelName:    m.env.GetModelDisplayName(),
 		InputTokens:  m.env.InputTokens,
 		OutputTokens: m.env.OutputTokens,

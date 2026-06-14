@@ -13,6 +13,12 @@ import (
 
 const maxVisibleTasks = 8
 
+// trackerPulseTicks is the number of spinner frames per ●/◌ swap of an
+// in-progress task. At ~360ms per frame this gives a ~1.1s breathe — calmer
+// than the agent icon's faster blink (cf. agentBlinkTicks in tool_render.go),
+// suiting the tracker's quieter role.
+const trackerPulseTicks = 3
+
 // TrackerListParams holds the parameters for rendering a tracker list.
 type TrackerListParams struct {
 	Tasks        []*tracker.Task
@@ -21,6 +27,9 @@ type TrackerListParams struct {
 	Width        int
 	SpinnerView  string
 	Blockers     func(taskID string) []string
+	// Blink is the shared frame-tick counter (see FrameClock.Frame) that
+	// drives the in-progress pulse via trackerPulseTicks.
+	Blink int
 }
 
 // RenderTrackerList renders a compact task list above the input area.
@@ -67,14 +76,14 @@ func RenderTrackerList(params TrackerListParams) string {
 		if rendered >= maxVisibleTasks && t.Status != tracker.StatusInProgress {
 			continue
 		}
-		sb.WriteString(renderTask(t, params.Width, idWidth, params.Blockers))
+		sb.WriteString(renderTask(t, params.Width, idWidth, params.Blockers, params.Blink))
 		rendered++
 	}
 
 	return sb.String()
 }
 
-func renderTask(t *tracker.Task, width, idWidth int, blockers func(string) []string) string {
+func renderTask(t *tracker.Task, width, idWidth int, blockers func(string) []string, blink int) string {
 	indent := "  "
 	idTag := fmt.Sprintf("%-*s", idWidth, "#"+t.ID)
 	maxTextLen := max(width-len(indent)-idWidth-8, 12)
@@ -95,11 +104,14 @@ func renderTask(t *tracker.Task, width, idWidth int, blockers func(string) []str
 		if t.ActiveForm != "" {
 			displayText = kit.TruncateText(t.ActiveForm, maxTextLen)
 		}
+		// Pulse on the shared frame tick (a true ~360ms clock; see FrameClock)
+		// rather than the wall clock, which only sampled on redraws and so
+		// flickered irregularly.
 		activeIcon := "●"
 		activeStyle := trackerInProgressStyle
-		if time.Now().UnixNano()/500000000%2 == 0 {
+		if (blink/trackerPulseTicks)%2 == 1 {
 			activeIcon = "◌"
-			activeStyle = lipgloss.NewStyle().Foreground(kit.CurrentTheme.Muted)
+			activeStyle = mutedStyle
 		}
 		detail := ""
 		if elapsed := formatElapsedTime(t.StatusChangedAt); elapsed != "" {
